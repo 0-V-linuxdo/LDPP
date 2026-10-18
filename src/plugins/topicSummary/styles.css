@@ -1,0 +1,242 @@
+/*
+ * The original script's sidebar: as wide as Discourse's own sidebar plus an offset (set from sidebar.ts), sliding
+ * fully off the screen edge when closed, with its 20 × 60 handle on the outer edge left on screen.
+ */
+.ldpp-sidebar {
+    --ldpp-sidebar-width: 270px;
+    /* Side padding of the header and body; the panel can be as narrow as the native sidebar, so it stays small. */
+    --ldpp-sidebar-pad: 0.6rem;
+
+    position: fixed;
+    /* Flush under the header and down to the window's bottom, like Discourse's own sidebar beside it. */
+    top: var(--header-offset, 4rem);
+    bottom: 0;
+    z-index: 990;
+    width: min(var(--ldpp-sidebar-width), calc(100vw - 20px));
+    transition: transform 0.3s ease, width 0.3s ease;
+}
+
+.ldpp-sidebar.is-left {
+    left: 0;
+    transform: translateX(-100%);
+}
+
+.ldpp-sidebar.is-right {
+    right: 0;
+    transform: translateX(100%);
+}
+
+.ldpp-sidebar.is-open {
+    transform: none;
+}
+
+.ldpp-sidebar-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border: 1px solid var(--ldpp-line);
+    background: var(--ldpp-bg);
+    color: var(--ldpp-fg);
+    box-shadow: var(--ldpp-shadow);
+    contain: content;
+}
+
+/* A full-height column: only the edge facing the page has a border, no rounded corners. */
+.ldpp-sidebar-panel.ldpp-sidebar-panel {
+    border-block: 0;
+    border-radius: 0;
+}
+
+.ldpp-sidebar.is-left .ldpp-sidebar-panel {
+    border-left: 0;
+}
+
+.ldpp-sidebar.is-right .ldpp-sidebar-panel {
+    border-right: 0;
+}
+
+/* Off screen it is out of the tab order and its shadow does not show at the edge; hidden once the slide ends. */
+.ldpp-sidebar:not(.is-open) .ldpp-sidebar-panel {
+    visibility: hidden;
+    transition: visibility 0s 0.3s;
+}
+
+.ldpp-sidebar-handle {
+    position: absolute;
+    top: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 60px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: var(--ldpp-accent);
+    color: #fff;
+    font-size: 14px;
+    line-height: 1;
+    box-shadow: 0 2px 5px rgb(0 0 0 / 20%);
+    cursor: pointer;
+    transform: translateY(-50%);
+}
+
+.ldpp-sidebar.is-left .ldpp-sidebar-handle {
+    right: -20px;
+    border-radius: 0 5px 5px 0;
+}
+
+.ldpp-sidebar.is-right .ldpp-sidebar-handle {
+    left: -20px;
+    border-radius: 5px 0 0 5px;
+}
+
+/* The original's arrows, as it had them. */
+.ldpp-sidebar-handle::after {
+    content: "◀";
+}
+
+.ldpp-sidebar.is-open.is-left .ldpp-sidebar-handle::after {
+    content: "▶";
+}
+
+.ldpp-sidebar-handle:focus-visible {
+    outline: 2px solid var(--ldpp-accent);
+    outline-offset: 2px;
+}
+
+.ldpp-sidebar-header {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.4rem 0.5rem var(--ldpp-sidebar-pad);
+    border-bottom: 1px solid var(--ldpp-line);
+}
+
+/* The tabs fill the header left of ⚙; the panel can be as narrow as the native sidebar (100 px at the least). */
+.ldpp-sidebar-header > .ldpp-sidebar-tabs {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.ldpp-sidebar-header > .ldpp-icon-btn {
+    flex: none;
+}
+
+.ldpp-sidebar-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-height: 0;
+    padding: 0.6rem var(--ldpp-sidebar-pad);
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+/* On the 提问 tab the thread scrolls by itself and its composer stays at the bottom: the body does not scroll then. */
+.ldpp-sidebar-body:has(> .ldpp-qa) {
+    overflow: hidden;
+}
+
+.ldpp-sidebar-tabs {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.2rem;
+    border-radius: 8px;
+    background: var(--ldpp-soft);
+}
+
+.ldpp-sidebar-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.3rem 0.4rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border: 0;
+    border-radius: var(--ldpp-btn-radius);
+    background: transparent;
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+    cursor: pointer;
+}
+
+@media (hover: hover) {
+    .ldpp-sidebar-tab:not(.is-active):hover {
+        background: var(--ldpp-flat-bg-hover);
+        color: var(--ldpp-flat-text-hover);
+    }
+}
+
+.ldpp-sidebar-tab.is-active {
+    background: var(--ldpp-bg);
+    color: var(--ldpp-fg);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 15%);
+}
+
+.ldpp-sv {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-width: 0;
+}
+
+.ldpp-sv-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.ldpp-sv-spacer {
+    flex: 1 1 auto;
+}
+
+.ldpp-sv-nav {
+    display: inline-flex;
+    align-items: center;
+}
+
+.ldpp-sv-nav .ldpp-icon-btn {
+    width: 1.6rem;
+    height: 1.6rem;
+}
+
+.ldpp-sv-count {
+    min-width: 3.2em;
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.ldpp-sv-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+}
+
+.ldpp-sv-stale {
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+}
+
+.ldpp-sv-meta {
+    margin: 0;
+    color: var(--ldpp-muted);
+    font-size: 0.78rem;
+}
+
+.ldpp-sv-empty p {
+    margin: 0 0 0.5rem;
+    color: var(--ldpp-muted);
+}
+
+.ldpp-prompt-editor .ldpp-field-stack textarea {
+    min-height: 6rem;
+}

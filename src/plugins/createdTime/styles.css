@@ -1,0 +1,42 @@
+/* The creation time sits in Discourse's own cell; while it is there the view count beside it is hidden, not removed
+   (Ember keeps updating it). Colours are the original script's bands by age. */
+.ldpp-created-time {
+    font-weight: 400;
+    white-space: nowrap;
+}
+
+.topic-list td.views:has(> .ldpp-created-time) > .number {
+    display: none;
+}
+
+.topic-list td.views:has(> .ldpp-created-time),
+.topic-list td.activity:has(> .ldpp-created-time) {
+    white-space: nowrap;
+}
+
+.ldpp-created-time.is-day {
+    color: #45b5aa;
+}
+
+.ldpp-created-time.is-week {
+    color: #66a586;
+}
+
+.ldpp-created-time.is-month {
+    color: #cfa94a;
+}
+
+.ldpp-created-time.is-quarter {
+    color: #3e8ed2;
+}
+
+.ldpp-created-time.is-old {
+    color: #ccc;
+}
+
+.ldpp-created-tomb {
+    width: 1.5em;
+    height: 1.5em;
+    margin-right: 0.3em;
+    vertical-align: bottom;
+}

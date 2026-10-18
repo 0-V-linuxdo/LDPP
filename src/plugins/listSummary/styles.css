@@ -1,0 +1,115 @@
+.ldpp-row-btn.ldpp-sum-btn {
+    padding: 0 0.55rem;
+    border: var(--d-button-default-border, var(--d-button-border, 1px solid transparent));
+    background: var(--d-button-default-bg-color, var(--primary-low, #e9e9e9));
+    color: var(--d-button-default-text-color, var(--primary, #222));
+}
+
+.ldpp-row-btn.ldpp-sum-btn .ldpp-icon {
+    color: var(--d-button-default-icon-color, var(--primary-high, #4d4d4d));
+}
+
+@media (hover: hover) {
+    .ldpp-row-btn.ldpp-sum-btn:hover {
+        border: var(--d-button-default-border--hover, var(--d-button-default-border, 1px solid transparent));
+        background: var(--d-button-default-bg-color--hover, var(--primary-medium, #888));
+        color: var(--d-button-default-text-color--hover, var(--secondary, #fff));
+    }
+
+    .ldpp-row-btn.ldpp-sum-btn:hover .ldpp-icon {
+        color: var(--d-button-default-icon-color--hover, var(--primary-low, #e9e9e9));
+    }
+}
+
+.ldpp-row-btn.ldpp-sum-btn:active:not(:disabled) {
+    background-color: var(--d-button-default-bg-color--hover, var(--primary-medium, #888));
+    background-image: var(--ldpp-press);
+    color: var(--d-button-default-text-color--hover, var(--secondary, #fff));
+}
+
+.ldpp-row-btn.ldpp-sum-btn.is-active {
+    background: var(--d-selected, var(--tertiary-low, #d1f0ff));
+    color: var(--d-selected-text-color, var(--primary, #222));
+}
+
+.ldpp-row-btn.ldpp-sum-btn.is-active .ldpp-icon {
+    color: var(--tertiary, var(--ldpp-accent));
+}
+
+.ldpp-sum-btn .ldpp-spinner {
+    width: 0.75rem;
+    height: 0.75rem;
+}
+
+.ldpp-lsum {
+    --ldpp-lines: 14;
+    --ldpp-panel-width: 100%;
+
+    box-sizing: border-box;
+    width: var(--ldpp-panel-width);
+    max-width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--ldpp-line);
+    border-radius: var(--ldpp-radius);
+    background: var(--ldpp-bg);
+}
+
+.ldpp-lsum-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+
+.ldpp-lsum-title {
+    flex: none;
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+    font-weight: 600;
+}
+
+/* 重新总结 / 复制 / 提问, then the time and model, on the title row; in a narrow panel the time is cut short first. */
+.ldpp-lsum-head > .ldpp-sv-toolbar {
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.ldpp-lsum-head .ldpp-sv-meta {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ldpp-lsum-head .ldpp-icon-btn {
+    width: 1.6rem;
+    height: 1.6rem;
+}
+
+/*
+ * The scroll area reaches the panel's right border, so the scrollbar sits at the edge, not a padding's width inside it.
+ * Its text ends where the title row does; a classic scrollbar takes its width out of that padding, down to 0.5rem.
+ */
+.ldpp-lsum .ldpp-sv-content,
+.ldpp-lsum .ldpp-qa-thread {
+    max-height: calc(1.65em * var(--ldpp-lines));
+    margin-right: -0.8rem;
+    padding-right: max(0.5rem, calc(0.8rem - var(--ldpp-scrollbar, 0px)));
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+tr.topic-list-item.ldpp-flash > td {
+    animation: ldpp-flash 1.6s ease;
+}
+
+@keyframes ldpp-flash {
+    0%,
+    60% {
+        background-color: var(--ldpp-accent-soft);
+    }
+}

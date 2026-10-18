@@ -1,0 +1,36 @@
+/* 「本页检测」: the count and 重新检测 on one line, then one row per hidden layer. */
+.ldpp-field-head > .ldpp-field-control.ldpp-nwm-summary {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.6rem;
+}
+
+.ldpp-nwm-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin: 0.25rem 0 0.75rem;
+    padding: 0;
+    list-style: none;
+}
+
+.ldpp-nwm-list > li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--ldpp-line);
+    border-radius: var(--ldpp-radius);
+    background: var(--ldpp-soft);
+    font-size: var(--ldpp-font-sm);
+    overflow-wrap: anywhere;
+}
+
+.ldpp-nwm-empty {
+    margin: 0.25rem 0 0.75rem;
+}
+
+.ldpp-nwm-list > li > code {
+    align-self: flex-start;
+}

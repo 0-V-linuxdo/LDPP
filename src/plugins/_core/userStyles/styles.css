@@ -1,0 +1,209 @@
+/* 「主题」 tab (Void++ ThemesTab): two source rows, then search/filter and the same 2-column cards as 「功能」. */
+.ldpp-themes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ldpp-themes-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--ldpp-line);
+}
+
+.ldpp-themes-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ldpp-themes .ldpp-plugins-toolbar[hidden] {
+    display: none;
+}
+
+.ldpp-row-btn.ldpp-theme-remove {
+    --ldpp-flat-bg-hover: var(--danger-low, color-mix(in srgb, var(--ldpp-danger) 20%, transparent));
+    --ldpp-flat-bg-focus: var(--ldpp-flat-bg-hover);
+    --ldpp-flat-icon-hover: var(--danger, var(--ldpp-danger));
+}
+
+.ldpp-theme-card-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.ldpp-theme-card-footer > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ldpp-backup-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ldpp-backup-list .ldpp-check {
+    flex-wrap: wrap;
+    column-gap: 0.5rem;
+}
+
+.ldpp-backup-name {
+    font-weight: 600;
+}
+
+/* Variable controls use the shared field column (core.css); a checkbox variable keeps its switch at the right. */
+.ldpp-field-head > .ldpp-theme-var-control {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.ldpp-theme-var-control:not(.is-switch) > *,
+.ldpp-theme-var-control .ldpp-number-wrap > .ldpp-input {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+}
+
+.ldpp-color-field {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ldpp-color-field > .ldpp-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* The native swatch, sized like the text box beside it. */
+.ldpp-color-swatch.ldpp-color-swatch {
+    flex: none;
+    width: 2.1rem;
+    height: 2.1rem;
+    margin: 0;
+    padding: 2px;
+    border: 1px solid var(--ldpp-line);
+    border-radius: 6px;
+    background: var(--ldpp-bg);
+    cursor: pointer;
+}
+
+/* 「快速 CSS」 tab and the theme editor: the editor takes the rest of the height and scrolls on its own. */
+.ldpp-tab-panel:has(> .ldpp-quick-css) {
+    height: 100%;
+}
+
+.ldpp-quick-css {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    height: 100%;
+    min-height: 0;
+}
+
+.ldpp-quick-css > .ldpp-field {
+    flex: none;
+    padding: 0;
+    border: 0;
+}
+
+.ldpp-theme-edit .ldpp-dialog-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    overflow: hidden;
+}
+
+.ldpp-theme-edit .ldpp-field {
+    flex: none;
+    padding: 0;
+    border: 0;
+}
+
+.ldpp-theme-edit .ldpp-field-error:empty {
+    display: none;
+}
+
+/* Void++ CssEditor: textarea and highlight share one grid cell; the frame scrolls both. */
+.ldpp-css-wrap {
+    display: grid;
+    /* At least the frame's height, so a click below the last line still lands in the textarea. */
+    grid-template-rows: minmax(100%, auto);
+    flex: 1 1 auto;
+    min-height: 12rem;
+    border: 1px solid var(--ldpp-line);
+    border-radius: var(--ldpp-radius, 8px);
+    background: var(--ldpp-soft);
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.ldpp-css-wrap:focus-within {
+    border-color: var(--ldpp-accent);
+    box-shadow: inset 0 0 0 1px var(--ldpp-accent);
+}
+
+.ldpp-css-wrap.is-disabled {
+    opacity: 0.6;
+}
+
+.ldpp-css-highlight,
+.ldpp-css-wrap > textarea.ldpp-css-input {
+    grid-area: 1 / 1;
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0;
+    padding: 0.75rem;
+    border: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.55;
+    letter-spacing: normal;
+    word-spacing: normal;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    tab-size: 4;
+}
+
+.ldpp-css-highlight {
+    color: var(--primary-medium, var(--ldpp-muted));
+    pointer-events: none;
+}
+
+.ldpp-css-wrap > textarea.ldpp-css-input {
+    height: auto;
+    overflow: hidden;
+    resize: none;
+    background: transparent;
+    color: transparent;
+    caret-color: var(--primary, var(--ldpp-fg));
+    box-shadow: none;
+    outline: none;
+}
+
+.ldpp-css-wrap > textarea.ldpp-css-input::placeholder {
+    color: var(--primary-medium, var(--ldpp-muted));
+}
+
+/* Token colours from the Discourse palette, so they follow the light/dark scheme. */
+.ldpp-css-sel { color: var(--tertiary, #08c); }
+.ldpp-css-prop { color: var(--primary-high, #555); }
+.ldpp-css-val { color: var(--primary, #222); }
+.ldpp-css-str { color: var(--success, #090); }
+.ldpp-css-num { color: var(--quaternary, #e45735); }
+.ldpp-css-at { color: var(--love, #fa6c8d); }
+.ldpp-css-com { color: var(--primary-medium, #888); font-style: italic; }
+.ldpp-css-brace,
+.ldpp-css-punct { color: var(--primary-medium, #888); }

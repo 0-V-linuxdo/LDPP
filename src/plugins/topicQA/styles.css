@@ -1,0 +1,292 @@
+/*
+ * 提问: a chat thread over a composer. In the sidebar the thread scrolls on its own and the composer stays at the
+ * bottom (the sidebar body stops scrolling, so there is one scrollbar); in a list row both flow and the list panel
+ * caps the thread's height.
+ */
+.ldpp-qa {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-width: 0;
+    min-height: 0;
+}
+
+.ldpp-qa-sidebar {
+    flex: 1 1 auto;
+}
+
+.ldpp-qa-thread {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-height: 0;
+}
+
+/* The thread's scrollbar sits at the panel edge, as the sidebar body's did. */
+.ldpp-qa-sidebar .ldpp-qa-thread {
+    flex: 1 1 auto;
+    margin-inline: calc(-1 * var(--ldpp-sidebar-pad, 0.6rem));
+    padding-inline: var(--ldpp-sidebar-pad, 0.6rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* A short conversation sits just above the composer, as in chat apps; a long one scrolls from the top. */
+.ldpp-qa-thread > :first-child {
+    margin-top: auto;
+}
+
+.ldpp-qa-empty {
+    margin: 0;
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+    line-height: 1.5;
+}
+
+.ldpp-qa-turn {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+/* The question: a full-width tinted block (not a chat bubble), then the answer as plain content below it. */
+.ldpp-qa-q {
+    padding: 0.45rem 0.6rem;
+    border-radius: var(--ldpp-radius);
+    background: var(--ldpp-soft);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.ldpp-qa-tag {
+    display: inline-block;
+    margin-inline-end: 0.35rem;
+    padding: 0 0.45rem;
+    border-radius: 999px;
+    background: var(--ldpp-accent-soft);
+    font-size: var(--ldpp-font-sm);
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.ldpp-qa-a {
+    min-width: 0;
+}
+
+.ldpp-qa-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--ldpp-muted);
+    font-size: 0.78rem;
+}
+
+.ldpp-qa-meta > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ldpp-qa-meta .ldpp-icon-btn {
+    flex: none;
+    width: 1.6rem;
+    height: 1.6rem;
+    margin-inline-start: auto;
+}
+
+.ldpp-qa-pending {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+}
+
+.ldpp-qa-composer {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+/* In a list row the panel is wide: the preset chips go left of the question box instead of taking a row of their own. */
+.ldpp-qa-list {
+    container-type: inline-size;
+}
+
+@container (min-width: 30rem) {
+    .ldpp-qa-list .ldpp-qa-composer {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .ldpp-qa-list .ldpp-qa-chips:not(:empty) {
+        display: flex;
+        flex: 0 1 auto;
+        flex-wrap: wrap;
+        max-width: 40%;
+    }
+
+    .ldpp-qa-list .ldpp-qa-box {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+}
+
+/* Presets as chips right above the box: one click puts the question in it to edit or send. */
+/* Equal columns: two short presets share one row even in a sidebar as narrow as Discourse's; more wrap in step. */
+.ldpp-qa-chips {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(4.2rem, 1fr));
+    gap: 0.3rem;
+}
+
+.ldpp-qa-chips:empty {
+    display: none;
+}
+
+.ldpp-qa-chip {
+    min-width: 0;
+    margin: 0;
+    padding: 0.2rem 0.4rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border: 1px solid var(--ldpp-line);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ldpp-fg);
+    font: inherit;
+    font-size: var(--ldpp-font-sm);
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+@media (hover: hover) {
+    .ldpp-qa-chip:hover {
+        background: var(--ldpp-flat-bg-hover);
+        color: var(--ldpp-flat-text-hover);
+    }
+}
+
+.ldpp-qa-chip:focus-visible {
+    outline: 2px solid var(--ldpp-accent);
+    outline-offset: 1px;
+}
+
+/* The question box: the text grows from one line, the send / stop button sits inside at its bottom right. */
+.ldpp-qa-box {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.35rem;
+    padding: 0.3rem 0.3rem 0.3rem 0.65rem;
+    border: 1px solid var(--ldpp-line);
+    border-radius: 10px;
+    background: var(--ldpp-bg);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ldpp-qa-box:focus-within {
+    border-color: var(--ldpp-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ldpp-accent) 35%, transparent);
+}
+
+textarea.ldpp-qa-input.ldpp-qa-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0.3rem 0;
+    border: 0;
+    border-radius: 0;
+    outline: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--ldpp-fg);
+    font: inherit;
+    font-size: var(--ldpp-font-sm);
+    line-height: 1.5;
+    resize: none;
+}
+
+textarea.ldpp-qa-input.ldpp-qa-input:focus {
+    outline: 0;
+    box-shadow: none;
+}
+
+textarea.ldpp-qa-input::placeholder {
+    color: var(--ldpp-muted);
+    opacity: 1;
+}
+
+.ldpp-icon-btn.ldpp-qa-send {
+    flex: none;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    background: var(--ldpp-accent);
+    color: #fff;
+}
+
+.ldpp-icon-btn.ldpp-qa-send:disabled {
+    background: var(--ldpp-soft);
+    color: var(--ldpp-muted);
+    cursor: default;
+}
+
+.ldpp-icon-btn.ldpp-qa-send.is-stop {
+    background: var(--ldpp-soft);
+    color: var(--ldpp-fg);
+}
+
+@media (hover: hover) {
+    .ldpp-icon-btn.ldpp-qa-send:not(:disabled):hover {
+        filter: brightness(1.1);
+    }
+}
+
+.ldpp-qa-menu {
+    position: absolute;
+    bottom: calc(100% + 0.3rem);
+    left: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    min-width: min(12rem, 100%);
+    padding: 0.25rem;
+    border: 1px solid var(--ldpp-line);
+    border-radius: var(--ldpp-radius);
+    background: var(--ldpp-bg);
+    box-shadow: var(--ldpp-shadow);
+}
+
+.ldpp-qa-menu[hidden] {
+    display: none;
+}
+
+.ldpp-qa-menu-item {
+    padding: 0.4rem 0.6rem;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--ldpp-fg);
+    text-align: left;
+    cursor: pointer;
+}
+
+.ldpp-qa-menu-item:hover,
+.ldpp-qa-menu-item:focus-visible {
+    background: var(--ldpp-flat-bg-hover);
+}
+
+.ldpp-preset-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2.5fr) auto;
+    align-items: start;
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+}

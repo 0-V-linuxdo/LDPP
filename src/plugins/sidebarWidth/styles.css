@@ -1,0 +1,38 @@
+/* Drag handle in the gap right of Discourse's sidebar: fixed, outside .sidebar-wrapper (sticky + scrolling). */
+/* Not .ldpp-sidebar-handle: that is the topic page's 「AI」 sidebar tab (topicSummary), which has a border and padding. */
+.ldpp-sidebar-width-handle {
+    position: fixed;
+    z-index: 200;
+    width: 10px;
+    cursor: col-resize;
+    touch-action: none;
+}
+
+.ldpp-sidebar-width-handle[hidden] {
+    display: none;
+}
+
+.ldpp-sidebar-width-handle::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 3px;
+    width: 4px;
+    border-radius: 2px;
+    transition: background-color 0.2s ease;
+}
+
+.ldpp-sidebar-width-handle:hover::after {
+    background: var(--primary-low-mid, rgb(127 127 127 / 35%));
+}
+
+.ldpp-sidebar-width-handle.is-active::after {
+    background: var(--tertiary, #08c);
+}
+
+html.ldpp-sidebar-width-resizing,
+html.ldpp-sidebar-width-resizing * {
+    cursor: col-resize !important;
+    user-select: none !important;
+}

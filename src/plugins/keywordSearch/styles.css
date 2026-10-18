@@ -1,0 +1,212 @@
+/* The 🏷️ in the search page's field sits left of Discourse's clear ×, which is placed the same way (absolute, 8px). */
+.ldpp-kws-toggle.is-in-field {
+    position: absolute;
+    top: 50%;
+    right: 2rem;
+    z-index: 1;
+    transform: translateY(-50%);
+}
+
+/* Room for the 🏷️ and the ×: Discourse's own `.search-container .search-bar__field input.search-query` leaves 2em. */
+.search-container .search-bar__field:has(> .ldpp-kws-toggle) > input.search-query {
+    padding-inline-end: 4.75rem;
+}
+
+.ldpp-kws-toggle {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+/* Under the search box, in the page (it scrolls with it), below the header and LD++'s dialogs. */
+.ldpp-kws-panel {
+    position: absolute;
+    z-index: 980;
+    box-sizing: border-box;
+    max-height: 60vh;
+    padding: 0.6rem 0.75rem 0.75rem;
+    overflow-y: auto;
+    border: 1px solid var(--ldpp-line);
+    border-radius: var(--ldpp-radius);
+    background: var(--ldpp-bg);
+    box-shadow: var(--ldpp-shadow);
+    color: var(--ldpp-fg);
+    overscroll-behavior: contain;
+}
+
+.ldpp-kws-head {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-bottom: 0.6rem;
+}
+
+.ldpp-kws-tabs {
+    display: flex;
+    flex: 1 1 auto;
+    gap: 0.25rem;
+    padding: 0.2rem;
+    border-radius: 8px;
+    background: var(--ldpp-soft);
+}
+
+.ldpp-kws-tab {
+    display: inline-flex;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.5rem;
+    border: 0;
+    border-radius: var(--ldpp-btn-radius);
+    background: transparent;
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+    cursor: pointer;
+}
+
+@media (hover: hover) {
+    .ldpp-kws-tab:not(.is-active):hover {
+        background: var(--ldpp-flat-bg-hover);
+        color: var(--ldpp-flat-text-hover);
+    }
+}
+
+.ldpp-kws-tab.is-active {
+    background: var(--ldpp-bg);
+    color: var(--ldpp-fg);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 15%);
+}
+
+.ldpp-kws-count {
+    color: var(--ldpp-muted);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+}
+
+.ldpp-kws-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* A chip: the search / open action, then its ✎. */
+.ldpp-kws-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    border: 1px solid var(--ldpp-line);
+    border-radius: 999px;
+    background: var(--ldpp-soft);
+}
+
+.ldpp-kws-chip-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0.25rem 0.2rem 0.25rem 0.7rem;
+    border: 0;
+    border-radius: 999px 0 0 999px;
+    background: transparent;
+    color: var(--ldpp-fg);
+    font: inherit;
+    font-size: var(--ldpp-font-sm);
+    text-align: left;
+    cursor: pointer;
+}
+
+.ldpp-kws-chip-main:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.ldpp-kws-chip-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+@media (hover: hover) {
+    .ldpp-kws-chip-main:not(:disabled):hover {
+        color: var(--ldpp-flat-text-hover);
+    }
+
+    .ldpp-kws-chip:has(> .ldpp-kws-chip-main:not(:disabled):hover) {
+        background: var(--ldpp-flat-bg-hover);
+    }
+}
+
+.ldpp-icon-btn.ldpp-kws-chip-edit {
+    flex: none;
+    width: 1.6rem;
+    height: 1.6rem;
+    margin-right: 0.15rem;
+    border-radius: 50%;
+}
+
+/* The order's badge, in its colour (the old script's colours, editable in the settings). */
+.ldpp-kws-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.45rem;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.ldpp-kws-empty {
+    margin: 0.25rem 0;
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+}
+
+.ldpp-kws-colors {
+    display: flex;
+    flex-direction: column;
+}
+
+/* In the settings' control column, like the other fields: the script's preview chip, its colour at the right end. */
+.ldpp-field-head > .ldpp-field-control.ldpp-kws-color {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.6rem;
+}
+
+.ldpp-kws-preview {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    max-width: 100%;
+    padding: 0.25rem 0.4rem 0.25rem 0.7rem;
+    border: 1px solid;
+    border-radius: 999px;
+    background: var(--ldpp-soft);
+    color: var(--ldpp-fg);
+    font-size: var(--ldpp-font-sm);
+    white-space: nowrap;
+}
+
+.ldpp-kws-color > .ldpp-kws-color-input {
+    flex: none;
+    margin-inline-start: auto;
+}
+
+.ldpp-kws-color-input {
+    width: 1.75rem;
+    height: 1.75rem;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--ldpp-line);
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+}

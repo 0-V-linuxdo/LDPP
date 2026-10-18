@@ -1,0 +1,282 @@
+/* Block buttons hover red, like Discourse's own danger actions; blocked ones stay red. */
+.ldpp-row-btn.ldpp-block-btn {
+    --ldpp-flat-bg-hover: var(--danger-low, color-mix(in srgb, var(--ldpp-danger) 20%, transparent));
+    --ldpp-flat-bg-focus: var(--ldpp-flat-bg-hover);
+    --ldpp-flat-icon-hover: var(--danger, var(--ldpp-danger));
+}
+
+.ldpp-block-btn.is-blocked {
+    --ldpp-btn-tone: var(--danger, var(--ldpp-danger));
+}
+
+.ldpp-blocked-float {
+    position: fixed;
+    top: 140px;
+    right: 16px;
+    z-index: 900;
+}
+
+@media (max-width: 768px) {
+    .ldpp-blocked-float {
+        top: 120px;
+        right: 12px;
+    }
+}
+
+.ldpp-block-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.ldpp-block-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.ldpp-title-source {
+    font-size: 1em;
+    line-height: 1.5;
+}
+
+.ldpp-block-preview {
+    margin: 0;
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+    line-height: 1.5;
+}
+
+.ldpp-block-title {
+    margin: 0;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.ldpp-reason-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ldpp-reason-kind {
+    flex: none;
+    min-width: 5em;
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+}
+
+.ldpp-reason-rule {
+    word-break: break-all;
+}
+
+.ldpp-rule-hint {
+    margin: 0 0 0.5rem;
+    font-size: var(--ldpp-font-sm);
+}
+
+/* Keyword list: content-width chips that wrap; letter markers sit inside the flow (no full-width rows). */
+.ldpp-keywords {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Search / add / A–Z stay reachable while the list scrolls (the dialog body is the only scroller). */
+.ldpp-keywords-head {
+    position: sticky;
+    top: -1rem;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: -0.25rem;
+    padding: 0.25rem 0 0.4rem;
+    background: var(--ldpp-bg);
+    box-shadow: 0 1px 0 var(--ldpp-line);
+}
+
+.ldpp-keywords-toolbar,
+.ldpp-keywords-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ldpp-keywords-toolbar .ldpp-keywords-search {
+    flex: 1 1 12rem;
+    width: auto;
+    min-width: 0;
+}
+
+.ldpp-keywords-toolbar .ldpp-keywords-add {
+    flex: 1 1 14rem;
+    width: auto;
+    min-width: 0;
+}
+
+/* 「添加」 and 「批量编辑」 end the two rows at one width, so the sort box ends where the add box above it does (the
+   wider 「批量编辑」 pushed it 5.5px left of it). */
+.ldpp-keywords-head :is(.ldpp-keywords-toolbar, .ldpp-keywords-meta) > .ldpp-btn:last-child {
+    justify-content: center;
+    min-width: 6rem;
+}
+
+.ldpp-keywords-status {
+    font-size: var(--ldpp-font-sm);
+    font-variant-numeric: tabular-nums;
+}
+
+.ldpp-keywords-index {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.125rem;
+}
+
+.ldpp-keywords-index[hidden] {
+    display: none;
+}
+
+.ldpp-keywords-jump {
+    min-width: 1.5rem;
+    height: 1.5rem;
+    margin: 0;
+    padding: 0 0.25rem;
+    border: 0;
+    border-radius: var(--ldpp-btn-radius);
+    background: transparent;
+    color: var(--ldpp-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+@media (hover: hover) {
+    .ldpp-keywords-jump:hover {
+        background: var(--ldpp-flat-bg-hover);
+        color: var(--ldpp-fg);
+    }
+}
+
+.ldpp-keywords-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem 0.3rem;
+}
+
+.ldpp-keywords-letter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4rem;
+    height: 1.6rem;
+    margin-inline-start: 0.35rem;
+    color: var(--tertiary, var(--ldpp-accent));
+    font-size: 0.75rem;
+    font-weight: 700;
+    scroll-margin-top: 8.5rem;
+}
+
+.ldpp-keywords-letter:first-child {
+    margin-inline-start: 0;
+}
+
+.ldpp-keyword {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1rem;
+    max-width: 14rem;
+    height: 1.6rem;
+    padding: 0 0.1rem 0 0.45rem;
+    border-radius: var(--ldpp-btn-radius);
+    background: var(--primary-very-low, var(--ldpp-soft));
+}
+
+.ldpp-keyword-text {
+    overflow: hidden;
+    min-width: 0;
+    font-size: var(--ldpp-font-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ldpp-keywords-hit {
+    padding: 0;
+    border-radius: 2px;
+    background: var(--highlight-low, color-mix(in srgb, var(--ldpp-accent) 30%, transparent));
+    color: inherit;
+}
+
+.ldpp-icon-btn.ldpp-keyword-remove {
+    flex: none;
+    width: 1.15rem;
+    min-width: 0;
+    height: 1.15rem;
+    padding: 0;
+    color: var(--primary-medium, var(--ldpp-muted));
+}
+
+@media (hover: hover) {
+    .ldpp-icon-btn.ldpp-keyword-remove:hover {
+        background: var(--danger-low, color-mix(in srgb, var(--ldpp-danger) 20%, transparent));
+        color: var(--danger, var(--ldpp-danger));
+    }
+}
+
+.ldpp-keywords-empty {
+    flex-basis: 100%;
+    margin: 0.5rem 0;
+}
+
+.ldpp-keywords-bulk {
+    min-height: 8rem;
+    resize: vertical;
+    line-height: 1.7;
+}
+
+.ldpp-keywords-meta .ldpp-keywords-sort {
+    width: auto;
+    min-height: 1.8rem;
+    padding-block: 0.15rem;
+    font-size: var(--ldpp-font-sm);
+}
+
+.ldpp-regex-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.ldpp-regex-row {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr) auto;
+    align-items: start;
+    gap: 0.4rem;
+}
+
+.ldpp-regex-list.no-notes .ldpp-regex-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.ldpp-regex-row textarea.ldpp-regex-pattern {
+    min-height: 2.1rem;
+    resize: none;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.ldpp-regex-error {
+    grid-column: 1 / -1;
+    color: var(--ldpp-danger);
+    font-size: var(--ldpp-font-sm);
+}
+
+.ldpp-regex-error:empty {
+    display: none;
+}

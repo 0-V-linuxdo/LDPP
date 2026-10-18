@@ -1,0 +1,164 @@
+tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dearrow-btn) {
+    padding-inline-end: var(--ldpp-dearrow-lane);
+}
+
+tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dearrow-btn) .link-bottom-line {
+    margin-inline-end: calc(4px - var(--ldpp-dearrow-lane));
+}
+
+.ldpp-actions > .ldpp-slot[data-slot="dearrow"] {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 2px);
+}
+
+.ldpp-dearrow-icon path {
+    transition: fill 0.18s ease;
+}
+
+.ldpp-dearrow-btn.is-clickbait .ldpp-dearrow-icon path:nth-of-type(1) {
+    fill: #c62828;
+}
+
+.ldpp-dearrow-btn.is-clickbait .ldpp-dearrow-icon path:nth-of-type(2) {
+    fill: #fff;
+}
+
+.ldpp-dearrow-btn.is-clickbait .ldpp-dearrow-icon path:nth-of-type(3) {
+    fill: #e53935;
+}
+
+.ldpp-dearrow-btn:is(.is-neutral, .is-error, :focus-visible) .ldpp-dearrow-icon path:nth-of-type(1) {
+    fill: #6b6b6b;
+}
+
+.ldpp-dearrow-btn:is(.is-neutral, .is-error, :focus-visible) .ldpp-dearrow-icon path:nth-of-type(2) {
+    fill: #bdbdbd;
+}
+
+.ldpp-dearrow-btn:is(.is-neutral, .is-error, :focus-visible) .ldpp-dearrow-icon path:nth-of-type(3) {
+    fill: #8a8a8a;
+}
+
+@media (hover: hover) {
+    .ldpp-dearrow-btn:hover .ldpp-dearrow-icon path:nth-of-type(1) {
+        fill: #6b6b6b;
+    }
+
+    .ldpp-dearrow-btn:hover .ldpp-dearrow-icon path:nth-of-type(2) {
+        fill: #bdbdbd;
+    }
+
+    .ldpp-dearrow-btn:hover .ldpp-dearrow-icon path:nth-of-type(3) {
+        fill: #8a8a8a;
+    }
+}
+
+.ldpp-dearrow-btn:is(.is-unjudged, .is-judging) .ldpp-dearrow-icon path:nth-of-type(1) {
+    fill: var(--primary-low, #e9e9e9);
+}
+
+.ldpp-dearrow-btn:is(.is-unjudged, .is-judging) .ldpp-dearrow-icon path:nth-of-type(n + 2) {
+    fill: none;
+}
+
+@media (hover: hover) {
+    .ldpp-dearrow-btn:is(.is-unjudged, .is-judging):hover .ldpp-dearrow-icon path:nth-of-type(1) {
+        fill: var(--primary-low-mid, #b3b3b3);
+    }
+}
+
+.ldpp-dearrow-btn.is-judging .ldpp-dearrow-icon {
+    animation: ldpp-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.ldpp-dearrow-btn.is-judging {
+    cursor: progress;
+}
+
+.ldpp-dearrow-btn.is-working .ldpp-dearrow-icon path:nth-of-type(1) {
+    animation: ldpp-dearrow-outer 1.8s ease-in-out infinite alternate;
+}
+
+.ldpp-dearrow-btn.is-working .ldpp-dearrow-icon path:nth-of-type(2) {
+    animation: ldpp-dearrow-middle 1.8s ease-in-out infinite alternate;
+}
+
+.ldpp-dearrow-btn.is-working .ldpp-dearrow-icon path:nth-of-type(3) {
+    animation: ldpp-dearrow-center 1.8s ease-in-out infinite alternate;
+}
+
+.ldpp-row-btn.ldpp-dearrow-btn.is-working:disabled {
+    opacity: 1;
+    cursor: wait;
+}
+
+@keyframes ldpp-skeleton-pulse {
+    50% {
+        opacity: 0.45;
+    }
+}
+
+@keyframes ldpp-dearrow-outer {
+    from {
+        fill: #6b6b6b;
+    }
+
+    to {
+        fill: #1213bd;
+    }
+}
+
+@keyframes ldpp-dearrow-middle {
+    from {
+        fill: #bdbdbd;
+    }
+
+    to {
+        fill: #88c9f9;
+    }
+}
+
+@keyframes ldpp-dearrow-center {
+    from {
+        fill: #8a8a8a;
+    }
+
+    to {
+        fill: #0a62a5;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ldpp-dearrow-icon path {
+        transition: none;
+    }
+
+    .ldpp-dearrow-btn.is-working .ldpp-dearrow-icon path,
+    .ldpp-dearrow-btn.is-judging .ldpp-dearrow-icon {
+        animation: none;
+    }
+}
+
+/* A rewritten title is underlined whole; one with typos fixed only under the corrected characters (below). */
+.ldpp-title-overridden:not(.ldpp-title-edited) {
+    text-decoration: underline dotted color-mix(in srgb, var(--ldpp-accent) 60%, transparent);
+    text-underline-offset: 0.2em;
+}
+
+/* The corrected characters (a CSS highlight: no element is added to Discourse's title). */
+::highlight(ldpp-title-fix) {
+    text-decoration: underline dotted var(--ldpp-accent);
+    text-decoration-thickness: 2px;
+}
+
+.ldpp-title-mark-clickbait:is(:not(.ldpp-title-overridden), .ldpp-title-edited) {
+    text-decoration: underline dotted color-mix(in srgb, var(--danger, var(--ldpp-danger)) 75%, transparent);
+    text-underline-offset: 0.2em;
+}
+
+.ldpp-title-mark-original:not(.ldpp-title-overridden) {
+    text-decoration: underline dotted var(--primary-medium, #888);
+    text-underline-offset: 0.2em;
+}
+

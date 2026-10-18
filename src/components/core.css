@@ -1,0 +1,1183 @@
+:root {
+    --ldpp-bg: var(--secondary, #fff);
+    --ldpp-fg: var(--primary, #222);
+    --ldpp-muted: var(--primary-medium, #888);
+    --ldpp-line: var(--primary-low, #e5e5e5);
+    --ldpp-soft: var(--primary-very-low, #f6f6f6);
+    --ldpp-accent: var(--tertiary, #0088cc);
+    --ldpp-accent-soft: var(--tertiary-low, #d1f0ff);
+    --ldpp-danger: var(--danger, #e45735);
+    --ldpp-success: var(--success, #1ca551);
+    --ldpp-warning: #d89614;
+    --ldpp-radius: 8px;
+    --ldpp-dearrow-lane: 2.75rem;
+    --ldpp-btn-radius: var(--d-button-border-radius, 4px);
+    --ldpp-flat-icon: var(--d-button-flat-icon-color, var(--primary-low-mid, #8f8f8f));
+    --ldpp-flat-icon-hover: var(--d-button-flat-icon-color--hover, var(--primary, #222));
+    --ldpp-flat-text: var(--primary-high, #4d4d4d);
+    --ldpp-flat-text-hover: var(--d-button-flat-text-color--hover, var(--primary, #222));
+    --ldpp-flat-bg-hover: var(--d-button-flat-bg-color--hover, var(--d-hover, var(--primary-low, #e9e9e9)));
+    --ldpp-flat-bg-focus: var(--d-button-flat-bg-color--focus, var(--ldpp-flat-bg-hover));
+    --ldpp-press: linear-gradient(rgb(0 0 0 / 12%), rgb(0 0 0 / 12%));
+    --ldpp-shadow: 0 12px 32px rgb(0 0 0 / 22%);
+    --ldpp-font-sm: var(--font-down-1, 0.875em);
+}
+
+.ldpp-icon {
+    display: block;
+    flex: none;
+}
+
+tr.topic-list-item.ldpp-hidden,
+tr.topic-list-item.ldpp-hidden + tr.ldpp-panel-row {
+    display: none !important;
+}
+
+tr.topic-list-item.ldpp-revealed > td {
+    background-color: color-mix(in srgb, var(--ldpp-danger) 12%, transparent) !important;
+}
+
+/* A rewritten title replaces the emoji too; typo fixes keep them. */
+.ldpp-title-overridden:not(.ldpp-title-edited) img.emoji {
+    display: none;
+}
+
+.ldpp-actions {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-inline-start: auto;
+    padding-inline-start: 0.5rem;
+    contain: layout;
+}
+
+.ldpp-slot {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.ldpp-slot:empty {
+    display: none;
+}
+
+.ldpp-row-btn,
+.ldpp-icon-btn {
+    --ldpp-flat-rest: var(--ldpp-flat-icon);
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: var(--ldpp-btn-radius);
+    background: transparent;
+    color: var(--ldpp-btn-tone, var(--ldpp-flat-rest));
+    line-height: 1;
+    cursor: pointer;
+    transition: var(--d-button-transition, none);
+}
+
+.ldpp-row-btn {
+    height: 1.75rem;
+    min-width: 1.75rem;
+    padding: 0 0.4rem;
+    font-size: var(--ldpp-font-sm);
+}
+
+@media (hover: hover) {
+    .ldpp-row-btn:hover,
+    .ldpp-icon-btn:hover {
+        background: var(--ldpp-flat-bg-hover);
+        color: var(--ldpp-btn-tone, var(--ldpp-flat-icon-hover));
+    }
+}
+
+.ldpp-row-btn:focus-visible,
+.ldpp-icon-btn:focus-visible {
+    outline: 2px solid var(--ldpp-accent);
+    outline-offset: -2px;
+    background: var(--ldpp-flat-bg-focus);
+    color: var(--ldpp-btn-tone, var(--ldpp-flat-icon-hover));
+}
+
+.ldpp-row-btn:active:not(:disabled),
+.ldpp-icon-btn:active:not(:disabled) {
+    background-color: var(--ldpp-flat-bg-hover);
+    background-image: var(--ldpp-press);
+}
+
+.ldpp-row-btn.is-active,
+.ldpp-icon-btn[aria-pressed="true"] {
+    --ldpp-btn-tone: var(--tertiary, var(--ldpp-accent));
+}
+
+.ldpp-row-btn:disabled {
+    cursor: progress;
+    opacity: 0.8;
+}
+
+.ldpp-feedback-svg {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 55%;
+    max-width: 20px;
+    height: auto;
+    aspect-ratio: 1;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.ldpp-feedback-svg path {
+    fill: none;
+    stroke: var(--success, var(--ldpp-success));
+    stroke-width: 4;
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    animation: ldpp-feedback-draw 1s forwards;
+}
+
+.ldpp-feedback-alert {
+    position: absolute;
+    bottom: calc(100% + 0.15rem);
+    left: 50%;
+    z-index: 101;
+    padding: 0.1rem 0.4rem;
+    transform: translateX(-50%);
+    font-size: var(--font-down-2, 0.75em);
+    font-weight: normal;
+    line-height: 1.4;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.ldpp-feedback-alert.is-success {
+    color: var(--success, var(--ldpp-success));
+}
+
+.ldpp-feedback-alert.is-fail {
+    color: var(--danger, var(--ldpp-danger));
+}
+
+.is-feedback-transition > :is(.ldpp-feedback-svg, .ldpp-feedback-alert) {
+    transition: opacity 0.25s, color 0.25s;
+}
+
+.is-feedback-active > :is(.ldpp-feedback-svg, .ldpp-feedback-alert) {
+    opacity: 1;
+}
+
+@keyframes ldpp-feedback-draw {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+.ldpp-hover-only {
+    opacity: 0;
+}
+
+tr.topic-list-item:hover .ldpp-hover-only,
+tr.topic-list-item:focus-within .ldpp-hover-only,
+.ldpp-hover-only:focus-visible {
+    opacity: 1;
+}
+
+@media (hover: none), (pointer: coarse) {
+    .ldpp-hover-only {
+        opacity: 1;
+    }
+}
+
+tr.ldpp-panel-row > td {
+    padding: 0 0.5rem 0.75rem !important;
+    border-top: 0 !important;
+}
+
+.ldpp-panel {
+    contain: content;
+}
+
+.ldpp-btn {
+    --ldpp-btn-bg: var(--d-button-default-bg-color, var(--primary-low, #e9e9e9));
+    --ldpp-btn-fg: var(--d-button-default-text-color, var(--primary, #222));
+    --ldpp-btn-icon: var(--d-button-default-icon-color, var(--primary-high, #4d4d4d));
+    --ldpp-btn-border: var(--d-button-default-border, var(--d-button-border, 1px solid transparent));
+    --ldpp-btn-bg-hover: var(--d-button-default-bg-color--hover, var(--primary-medium, #888));
+    --ldpp-btn-fg-hover: var(--d-button-default-text-color--hover, var(--secondary, #fff));
+    --ldpp-btn-icon-hover: var(--d-button-default-icon-color--hover, var(--primary-low, #e9e9e9));
+    --ldpp-btn-border-hover: var(--d-button-default-border--hover, var(--ldpp-btn-border));
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35em;
+    min-height: 2.1rem;
+    margin: 0;
+    padding: 0.5em 0.65em;
+    border: var(--ldpp-btn-border);
+    border-radius: var(--ldpp-btn-radius);
+    background: var(--ldpp-btn-bg);
+    color: var(--ldpp-btn-fg);
+    font-size: var(--ldpp-font-sm);
+    font-weight: normal;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: var(--d-button-transition, none);
+}
+
+.ldpp-btn .ldpp-icon {
+    color: var(--ldpp-btn-icon);
+}
+
+@media (hover: hover) {
+    .ldpp-btn:hover:not(:disabled) {
+        border: var(--ldpp-btn-border-hover);
+        background: var(--ldpp-btn-bg-hover);
+        color: var(--ldpp-btn-fg-hover);
+    }
+
+    .ldpp-btn:hover:not(:disabled) .ldpp-icon {
+        color: var(--ldpp-btn-icon-hover);
+    }
+}
+
+.ldpp-btn:focus-visible {
+    outline: 2px solid var(--ldpp-accent);
+    outline-offset: 1px;
+}
+
+.ldpp-btn:active:not(:disabled) {
+    background-color: var(--ldpp-btn-bg-hover);
+    background-image: var(--ldpp-press);
+    color: var(--ldpp-btn-fg-hover);
+}
+
+.ldpp-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.ldpp-btn-small {
+    min-height: 1.8rem;
+    padding: 0.25em 0.6em;
+}
+
+.ldpp-btn-primary {
+    --ldpp-btn-bg: var(--d-button-primary-bg-color, var(--tertiary, #08c));
+    --ldpp-btn-fg: var(--d-button-primary-text-color, var(--secondary, #fff));
+    --ldpp-btn-icon: var(--d-button-primary-icon-color, var(--secondary, #fff));
+    --ldpp-btn-border: var(--d-button-primary-border, 1px solid transparent);
+    --ldpp-btn-bg-hover: var(--d-button-primary-bg-color--hover, var(--tertiary-hover, #06a));
+    --ldpp-btn-fg-hover: var(--d-button-primary-text-color--hover, var(--secondary, #fff));
+    --ldpp-btn-icon-hover: var(--d-button-primary-icon-color--hover, var(--secondary, #fff));
+    --ldpp-btn-border-hover: var(--d-button-primary-border--hover, 1px solid transparent);
+}
+
+.ldpp-btn-delete {
+    --ldpp-btn-bg-hover: var(--d-button-danger-bg-color, var(--danger, #e45735));
+    --ldpp-btn-fg-hover: var(--d-button-danger-text-color, var(--secondary, #fff));
+    --ldpp-btn-icon-hover: var(--d-button-danger-icon-color, var(--secondary, #fff));
+    --ldpp-btn-border-hover: var(--d-button-danger-border, 1px solid transparent);
+}
+
+.ldpp-btn-danger {
+    --ldpp-btn-bg: var(--d-button-danger-bg-color, var(--danger, #e45735));
+    --ldpp-btn-fg: var(--d-button-danger-text-color, var(--secondary, #fff));
+    --ldpp-btn-icon: var(--d-button-danger-icon-color, var(--secondary, #fff));
+    --ldpp-btn-border: var(--d-button-danger-border, 1px solid transparent);
+    --ldpp-btn-bg-hover: var(--d-button-danger-bg-color--hover, var(--danger-hover, #b33));
+    --ldpp-btn-fg-hover: var(--d-button-danger-text-color--hover, var(--secondary, #fff));
+    --ldpp-btn-icon-hover: var(--d-button-danger-icon-color--hover, var(--secondary, #fff));
+    --ldpp-btn-border-hover: var(--d-button-danger-border--hover, 1px solid transparent);
+}
+
+.ldpp-btn-ghost {
+    --ldpp-btn-bg: transparent;
+    --ldpp-btn-fg: var(--ldpp-flat-text);
+    --ldpp-btn-icon: var(--ldpp-flat-icon);
+    --ldpp-btn-border: 1px solid transparent;
+    --ldpp-btn-bg-hover: var(--ldpp-flat-bg-hover);
+    --ldpp-btn-fg-hover: var(--ldpp-flat-text-hover);
+    --ldpp-btn-icon-hover: var(--ldpp-flat-icon-hover);
+    --ldpp-btn-border-hover: 1px solid transparent;
+}
+
+.ldpp-icon-btn {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+}
+
+.ldpp-icon-btn.ldpp-row-btn {
+    width: 1.75rem;
+    min-width: 1.75rem;
+    height: 1.75rem;
+}
+
+/*
+ * Every LD++ scroll area (sidebar, settings, dialogs, card lists, panels, text boxes) gets a thin scrollbar on a
+ * transparent track, as the old summary script had: the classic scrollbar's grey track down the whole panel looked
+ * heavy. The thumb is Discourse's own mid grey. :where() keeps it overridable.
+ */
+:where([data-ldpp], [data-ldpp] *, .ldpp-panel-row *) {
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-low-mid, rgb(127 127 127 / 50%)) transparent;
+}
+
+.ldpp-input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 2.1rem;
+    margin: 0;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid var(--ldpp-line);
+    border-radius: 6px;
+    background: var(--ldpp-bg);
+    color: var(--ldpp-fg);
+    font: inherit;
+    font-size: var(--ldpp-font-sm);
+}
+
+/*
+ * linux.do (Discourse) styles `input[type=text|search|number|password…]` at specificity (0,1,1), above `.ldpp-input`:
+ * 16px text, 8px × 10.4px padding and a 9px bottom margin. Text inputs came out 38px tall next to 34px selects, used
+ * a bigger font than the selects beside them and stretched the 👁 row. Repeating the class puts LD++'s own box model
+ * back on every input type; selects and textareas are only styled by bare element selectors, which `.ldpp-input` beats.
+ */
+input.ldpp-input.ldpp-input {
+    margin: 0;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid var(--ldpp-line);
+    border-radius: 6px;
+    background: var(--ldpp-bg);
+    color: var(--ldpp-fg);
+    font-size: var(--ldpp-font-sm);
+}
+
+/* iOS zooms the page into any focused field under 16px, which is why Discourse keeps inputs at 16px on phones. */
+@media (pointer: coarse) {
+    input.ldpp-input.ldpp-input,
+    select.ldpp-input.ldpp-input,
+    textarea.ldpp-input.ldpp-input {
+        font-size: 16px;
+    }
+}
+
+textarea.ldpp-input {
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.ldpp-input:focus,
+input.ldpp-input.ldpp-input:focus {
+    border-color: var(--ldpp-accent);
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ldpp-accent) 35%, transparent);
+}
+
+.ldpp-input.ldpp-input.is-invalid {
+    border-color: var(--ldpp-danger);
+}
+
+.ldpp-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.ldpp-number {
+    width: 6.5rem;
+}
+
+.ldpp-number-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.ldpp-select {
+    width: auto;
+    min-width: 10rem;
+    max-width: 100%;
+}
+
+/*
+ * A native select (appearance: auto) insets its text a further 4px past the padding (Chromium's internal menu-list
+ * padding), so 「当前编辑」 read 4px right of 「名称」 below it although both boxes start at the same x. Without the
+ * native look the select uses exactly the inputs' padding; the arrow is drawn instead, as Void++'s select trigger
+ * draws its chevron: two 45° strokes in the text colour, so it follows the light and dark themes.
+ */
+select.ldpp-input {
+    appearance: none;
+    padding-right: calc(0.55rem + 8px + 0.5rem);
+    background-image:
+        linear-gradient(45deg, transparent calc(50% - 0.6px), var(--ldpp-select-arrow) calc(50% - 0.6px) calc(50% + 0.6px), transparent calc(50% + 0.6px)),
+        linear-gradient(-45deg, transparent calc(50% - 0.6px), var(--ldpp-select-arrow) calc(50% - 0.6px) calc(50% + 0.6px), transparent calc(50% + 0.6px));
+    background-position: right calc(0.55rem + 4px) center, right 0.55rem center;
+    background-size: 4px 4px;
+    background-repeat: no-repeat;
+    --ldpp-select-arrow: color-mix(in srgb, currentColor 80%, transparent);
+}
+
+.ldpp-unit,
+.ldpp-muted {
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+}
+
+.ldpp-secret {
+    display: flex;
+    align-items: stretch;
+    min-width: 0;
+}
+
+.ldpp-secret .ldpp-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.ldpp-secret .ldpp-input.ldpp-input {
+    border-radius: 6px 0 0 6px;
+}
+
+.ldpp-secret-toggle {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.6rem;
+    border: 1px solid var(--ldpp-line);
+    border-left: 0;
+    border-radius: 0 6px 6px 0;
+    background: var(--ldpp-soft);
+    color: var(--ldpp-muted);
+    cursor: pointer;
+}
+
+/* The switch and checkbox rows are <label>s, which Discourse gives `margin-bottom: 5px`; on a centred row that lifted
+   the switch 2.5px above its text. */
+.ldpp-switch {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    margin-block: 0;
+    width: 2.4rem;
+    height: 1.35rem;
+    cursor: pointer;
+}
+
+.ldpp-switch input[type="checkbox"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.ldpp-switch-track {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--ldpp-line);
+    transition: background-color 0.15s ease;
+}
+
+.ldpp-switch-track::after {
+    content: "";
+    position: absolute;
+    top: 0.15rem;
+    left: 0.15rem;
+    width: 1.05rem;
+    height: 1.05rem;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 30%);
+    transition: transform 0.15s ease;
+}
+
+.ldpp-switch input:checked + .ldpp-switch-track {
+    background: var(--ldpp-accent);
+}
+
+.ldpp-switch input:checked + .ldpp-switch-track::after {
+    transform: translateX(1.05rem);
+}
+
+.ldpp-switch input:focus-visible + .ldpp-switch-track {
+    outline: 2px solid var(--ldpp-accent);
+    outline-offset: 2px;
+}
+
+.ldpp-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--ldpp-line);
+}
+
+.ldpp-field:last-child {
+    border-bottom: 0;
+}
+
+.ldpp-field-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.ldpp-field-head > :last-child {
+    flex: 0 1 auto;
+    max-width: 60%;
+}
+
+/*
+ * Every input-type control - text, secret, select, number, slider or an inline group - takes the same column right
+ * of its label and fills it, so left (and right) edges line up down a form and inside each column of a split form.
+ * Before, only text boxes had the column; selects, numbers and groups sat right-aligned at their own widths and each
+ * started at a different x. The column never shrinks (a long label wraps instead); switches keep their own size at
+ * the right edge.
+ */
+.ldpp-field-head > :is(input, select, .ldpp-secret, .ldpp-field-wide, .ldpp-field-control, .ldpp-number-wrap, .ldpp-slider-wrap, .ldpp-inline-controls, .ldpp-theme-var-control) {
+    flex: 0 0 62%;
+    max-width: 62%;
+    min-width: 0;
+}
+
+.ldpp-field-head > :is(.ldpp-number-wrap, .ldpp-slider-wrap) {
+    display: flex;
+}
+
+.ldpp-field-head > .ldpp-number-wrap > .ldpp-number,
+.ldpp-field-head > .ldpp-slider-wrap > .ldpp-slider {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+}
+
+.ldpp-field-head > select.ldpp-select {
+    min-width: 0;
+}
+
+/* An inline group (「失败重试」: number 次 间隔 number 秒) fills the column too: its two numbers share the width that
+   is left, so the group ends at the same right edge as the inputs above it instead of 140px short. */
+.ldpp-field-head > .ldpp-inline-controls {
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+.ldpp-field-head > .ldpp-inline-controls > .ldpp-number-wrap {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.ldpp-field-head > .ldpp-inline-controls > .ldpp-number-wrap > .ldpp-number {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+}
+
+.ldpp-field-wide > .ldpp-input,
+.ldpp-field-wide > .ldpp-secret {
+    width: 100%;
+}
+
+.ldpp-inline-controls {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Flex, so a label's ⓘ (24px, taller than the text line) is centred with the text instead of sitting on its
+   baseline and pushing the text 3px off the control beside it. */
+.ldpp-field-label,
+.ldpp-section-title {
+    display: flex;
+    align-items: center;
+}
+
+.ldpp-field-label {
+    color: var(--ldpp-fg);
+    font-weight: 600;
+}
+
+.ldpp-section {
+    margin: 0 0 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--ldpp-line);
+    border-radius: var(--ldpp-radius);
+    background: var(--ldpp-bg);
+}
+
+.ldpp-section-title {
+    margin: 0 0 0.25rem;
+    font-size: 1em;
+}
+
+.ldpp-hint {
+    margin: 0.35rem 0;
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+    line-height: 1.5;
+}
+
+.ldpp-hint-warning {
+    color: var(--ldpp-warning);
+}
+
+.ldpp-hint-error {
+    color: var(--danger, var(--ldpp-danger));
+}
+
+.ldpp-hint-success {
+    color: var(--success, var(--ldpp-success));
+}
+
+/* Floating page-level toggle (「已屏蔽 N」, search filter): icon + count in a pill, as in the old blocker script. */
+.ldpp-float-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    margin: 0;
+    padding: 0 10px;
+    border: var(--d-button-default-border, 1px solid var(--primary-low, #e9e9e9));
+    border-radius: 12px;
+    background: var(--secondary, #fff);
+    color: var(--primary, #222);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 25%);
+    cursor: pointer;
+    user-select: none;
+}
+
+@media (hover: hover) {
+    .ldpp-float-pill:hover {
+        background: var(--ldpp-flat-bg-hover);
+    }
+}
+
+.ldpp-float-pill:active {
+    background-image: var(--ldpp-press);
+}
+
+.ldpp-float-pill:focus-visible {
+    outline: 2px solid var(--ldpp-accent);
+    outline-offset: 2px;
+}
+
+.ldpp-float-count {
+    min-width: 16px;
+    text-align: center;
+}
+
+.ldpp-float-count[hidden] {
+    display: none;
+}
+
+.ldpp-float-pill.is-revealing {
+    color: var(--primary-medium, #888);
+    box-shadow: none;
+}
+
+.ldpp-float-pill.is-revealing .ldpp-icon {
+    opacity: 0.5;
+}
+
+@media (max-width: 768px) {
+    .ldpp-float-pill {
+        height: 34px;
+        padding: 0 8px;
+        border-radius: 10px;
+    }
+}
+
+/* Sub-tabs: one of a few related blocks at a time (关键词 / 正则, 总结方法 / 输出格式, 判断 / 改写提示词). */
+.ldpp-subtabs {
+    display: flex;
+    gap: 0.125rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--ldpp-line);
+}
+
+.ldpp-subtab {
+    position: relative;
+    margin: 0;
+    padding: 0.35rem 0.65rem;
+    border: 0;
+    border-radius: var(--ldpp-btn-radius);
+    background: transparent;
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+    cursor: pointer;
+}
+
+@media (hover: hover) {
+    .ldpp-subtab:hover {
+        background: var(--ldpp-flat-bg-hover);
+        color: var(--ldpp-fg);
+    }
+}
+
+.ldpp-subtab.is-active {
+    color: var(--ldpp-fg);
+}
+
+.ldpp-subtab.is-active::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0.5rem;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--ldpp-fg);
+}
+
+.ldpp-infotip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin: 0 0 0 0.2rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--ldpp-btn-radius);
+    background: transparent;
+    color: var(--ldpp-flat-icon);
+    font-size: inherit;
+    line-height: 1;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+@media (hover: hover) {
+    .ldpp-infotip:hover {
+        background: var(--ldpp-flat-bg-hover);
+        color: var(--ldpp-flat-icon-hover);
+    }
+}
+
+.ldpp-infotip:focus-visible {
+    outline: 2px solid var(--ldpp-accent);
+    outline-offset: -2px;
+}
+
+.ldpp-infotip[aria-expanded="true"] {
+    color: var(--tertiary, var(--ldpp-accent));
+}
+
+.ldpp-infotip.is-warning {
+    color: var(--ldpp-warning);
+}
+
+.ldpp-infotip-pop {
+    position: fixed;
+    z-index: 10030;
+    box-sizing: border-box;
+    max-width: min(20rem, calc(100vw - 16px));
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--primary-low, var(--ldpp-line));
+    border-radius: var(--d-border-radius, 6px);
+    background: var(--secondary, var(--ldpp-bg));
+    color: var(--primary, var(--ldpp-fg));
+    box-shadow: var(--shadow-menu-panel, var(--ldpp-shadow));
+    font-size: var(--ldpp-font-sm);
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+/* No scrollbar of its own: error details sit in the sidebar, a list panel or the settings pane, which already scroll. */
+.ldpp-pre {
+    margin: 0;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8rem;
+}
+
+.ldpp-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.4rem 0;
+}
+
+.ldpp-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+}
+
+.ldpp-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.8rem;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ldpp-soft);
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+    cursor: pointer;
+}
+
+@media (hover: hover) {
+    .ldpp-tab:not(.is-active):hover {
+        background: var(--ldpp-flat-bg-hover);
+        color: var(--ldpp-flat-text-hover);
+    }
+}
+
+.ldpp-tab:active:not(.is-active) {
+    background-color: var(--ldpp-flat-bg-hover);
+    background-image: var(--ldpp-press);
+}
+
+.ldpp-tab.is-active {
+    background: var(--ldpp-accent);
+    color: var(--secondary, #fff);
+}
+
+.ldpp-tabs-vertical {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    margin: 0;
+}
+
+.ldpp-tabs-vertical .ldpp-tab {
+    justify-content: flex-start;
+    border-radius: var(--ldpp-btn-radius);
+    background: transparent;
+    font-size: inherit;
+}
+
+.ldpp-tabs-vertical .ldpp-tab.is-active {
+    background: var(--d-selected, var(--ldpp-accent-soft));
+    color: var(--d-selected-text-color, var(--ldpp-fg));
+}
+
+.ldpp-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10010;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgb(0 0 0 / 50%);
+}
+
+/* A dialog opened from another dialog (plugin settings, confirmations) does not darken the page twice. */
+.ldpp-dialog-overlay.is-nested {
+    background: transparent;
+}
+
+/* See `covers` in Dialog.ts: the large dialog underneath a same-size one is hidden, not shown around its edges. */
+.ldpp-dialog-overlay.is-covered > .ldpp-dialog {
+    visibility: hidden;
+}
+
+.ldpp-dialog {
+    display: flex;
+    flex-direction: column;
+    width: min(32rem, 100%);
+    max-height: min(85vh, 100%);
+    border-radius: 12px;
+    background: var(--ldpp-bg);
+    color: var(--ldpp-fg);
+    box-shadow: var(--ldpp-shadow);
+    outline: none;
+    contain: content;
+}
+
+.ldpp-dialog-small {
+    width: min(26rem, 100%);
+}
+
+.ldpp-dialog-large {
+    width: min(58rem, 100%);
+    height: min(80vh, 100%);
+}
+
+.ldpp-dialog-header {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 0.75rem 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--ldpp-line);
+}
+
+/* ‹ back + title; the button's padding is pulled into the header gutter so its chevron lines up with the content. */
+.ldpp-dialog-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+    margin-inline-start: -0.5rem;
+}
+
+.ldpp-dialog-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    font-size: 1.1em;
+}
+
+.ldpp-dialog-title > .ldpp-icon:first-child {
+    flex: none;
+    color: var(--primary-high, var(--ldpp-muted));
+}
+
+.ldpp-dialog.is-danger .ldpp-dialog-title > .ldpp-icon:first-child {
+    color: var(--danger, var(--ldpp-danger));
+}
+
+.ldpp-dialog-title > .ldpp-infotip {
+    margin: 0;
+}
+
+/* Secondary actions (关闭 / 取消) use Discourse's stock grey default button, not linux.do's outlined variant. */
+.ldpp-dialog-footer .ldpp-btn-default {
+    --ldpp-btn-bg: var(--primary-low, #e9e9e9);
+    --ldpp-btn-fg: var(--primary, #222);
+    --ldpp-btn-icon: var(--primary-high, #4d4d4d);
+    --ldpp-btn-border: 1px solid transparent;
+    --ldpp-btn-bg-hover: var(--primary-medium, #888);
+    --ldpp-btn-fg-hover: var(--secondary, #fff);
+    --ldpp-btn-icon-hover: var(--secondary, #fff);
+    --ldpp-btn-border-hover: 1px solid transparent;
+}
+
+.ldpp-dialog-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 1rem 1.25rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.ldpp-dialog-footer {
+    display: flex;
+    flex: none;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid var(--ldpp-line);
+}
+
+.ldpp-confirm-text {
+    line-height: 1.6;
+}
+
+.ldpp-toasts {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 10020;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: min(22rem, calc(100vw - 2rem));
+    max-height: 80vh;
+    overflow: hidden auto;
+    pointer-events: none;
+}
+
+.ldpp-toast {
+    position: relative;
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.7rem 2.2rem 0.7rem 0.85rem;
+    border: 1px solid var(--ldpp-line);
+    border-radius: 10px;
+    background: var(--ldpp-bg);
+    color: var(--ldpp-fg);
+    box-shadow: var(--ldpp-shadow);
+    opacity: 0;
+    transform: translateY(0.5rem);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: auto;
+}
+
+.ldpp-toast.is-shown {
+    opacity: 1;
+    transform: none;
+}
+
+.ldpp-toast.is-clickable {
+    cursor: pointer;
+}
+
+.ldpp-toast-dot {
+    flex: none;
+    width: 0.55rem;
+    height: 0.55rem;
+    margin-top: 0.4rem;
+    border-radius: 50%;
+    background: var(--ldpp-accent);
+}
+
+.ldpp-toast-success .ldpp-toast-dot {
+    background: var(--ldpp-success);
+}
+
+.ldpp-toast-warning .ldpp-toast-dot {
+    background: var(--ldpp-warning);
+}
+
+.ldpp-toast-error .ldpp-toast-dot {
+    background: var(--ldpp-danger);
+}
+
+.ldpp-toast-loading .ldpp-toast-dot {
+    border: 2px solid var(--ldpp-accent);
+    border-top-color: transparent;
+    background: transparent;
+    animation: ldpp-spin 0.8s linear infinite;
+}
+
+.ldpp-toast-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+    line-height: 1.45;
+}
+
+.ldpp-toast-text {
+    word-break: break-word;
+}
+
+.ldpp-toast-topic {
+    overflow: hidden;
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.ldpp-toast-close {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.ldpp-spinner {
+    display: inline-block;
+    width: 0.9rem;
+    height: 0.9rem;
+    border: 2px solid var(--ldpp-accent);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: ldpp-spin 0.8s linear infinite;
+}
+
+@keyframes ldpp-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.ldpp-content {
+    line-height: 1.65;
+    overflow-wrap: anywhere;
+}
+
+.ldpp-content > :first-child {
+    margin-top: 0;
+}
+
+.ldpp-content > :last-child {
+    margin-bottom: 0;
+}
+
+.ldpp-content pre {
+    overflow: auto;
+}
+
+.ldpp-error-box {
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--d-border-radius, 6px);
+    background: var(--danger-low, color-mix(in srgb, var(--ldpp-danger) 12%, transparent));
+}
+
+.ldpp-error-box summary {
+    cursor: pointer;
+    color: var(--ldpp-muted);
+    font-size: var(--ldpp-font-sm);
+}
+
+.ldpp-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.ldpp-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.15rem 0.2rem 0.15rem 0.55rem;
+    border-radius: 999px;
+    background: var(--ldpp-accent-soft);
+    font-size: var(--ldpp-font-sm);
+}
+
+.ldpp-chip-remove {
+    display: inline-flex;
+    padding: 0.15rem;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--ldpp-flat-icon);
+    cursor: pointer;
+}
+
+@media (hover: hover) {
+    .ldpp-chip-remove:hover {
+        background: var(--ldpp-flat-bg-hover);
+        color: var(--ldpp-flat-icon-hover);
+    }
+}
+
+.ldpp-check {
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+    gap: 0.35rem;
+    cursor: pointer;
+}
+
+/* Discourse's `input[type="checkbox"]` margin (2.7px top, 6.9px right) sat the box 2px below its text. */
+.ldpp-check input[type="checkbox"] {
+    flex: none;
+    margin: 0;
+}
+
+.ldpp-check-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+}
+
+html.ldpp-dialog-open {
+    overflow: hidden;
+}
