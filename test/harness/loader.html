@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>LD++ loader</title>
+<p id="s">packing…</p>
+<script>
+(async () => {
+    const params = new URLSearchParams(location.search);
+    const target = params.get("to") || "https://linux.do/latest";
+    const bundle = params.get("bundle") || "/userscript/LDPP.user.js";
+    const [shim, code] = await Promise.all([
+        fetch("/test/harness/gm-shim.js", { cache: "no-store" }).then(r => r.text()),
+        fetch(bundle, { cache: "no-store" }).then(r => r.text()),
+    ]);
+    const bytes = new TextEncoder().encode(`${shim}\n;\n${code}`);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 32768) bin += String.fromCharCode(...bytes.subarray(i, i + 32768));
+    const url = new URL(target);
+    url.hash = `ldpp=${btoa(bin)}`;
+    location.replace(url.href);
+})();
+</script>

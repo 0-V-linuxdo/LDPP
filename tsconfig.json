@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "strict": true,
+        "isolatedModules": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "noEmit": true,
+        "lib": ["ESNext", "DOM", "DOM.Iterable"],
+        "paths": {
+            "@api/*": ["./src/api/*"],
+            "@components/*": ["./src/components/*"],
+            "@plugins/*": ["./src/plugins/*"],
+            "@utils/*": ["./src/utils/*"]
+        },
+        "types": ["bun"]
+    },
+    "include": ["src/**/*.ts", "build.ts", "test/**/*.ts"],
+    "exclude": ["node_modules", "dist", "userscript"]
+}
