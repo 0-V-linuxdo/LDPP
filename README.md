@@ -10,7 +10,7 @@ LINUX DO（linux.do）增强用户脚本。它把两个旧脚本合到一个脚�
 ## 安装
 
 1. 先在 Tampermonkey / Violentmonkey 里**停用**旧的屏蔽脚本和总结脚本。同时开着会重复处理话题列表，旧问题会回来。
-2. 安装 [`userscript/LDPP.user.js`](userscript/LDPP.user.js)。
+2. 安装 [`userscript/LDPP.user.js`](https://raw.githubusercontent.com/0-V-linuxdo/LDPP/main/userscript/LDPP.user.js)（打开这个链接，脚本管理器会弹出安装页）。之后脚本管理器会自动从本仓库检查并安装新版本。
 3. 打开 linux.do，点顶栏的齿轮图标（或脚本菜单「⚙️ LD++ 设置」），在「AI 接口」页填入 OpenAI 兼容的 Chat Completions 地址、Key 和模型。各功能的开关在「功能」页的卡片上，点卡片上的滑杆图标打开该功能自己的设置；常用功能可以收藏或置顶。
 
 ### 从旧脚本迁移

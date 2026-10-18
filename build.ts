@@ -11,9 +11,16 @@ const isDev = process.argv.includes("--dev");
 const isWatch = process.argv.includes("--watch");
 const pkg = JSON.parse(readFileSync("package.json", "utf-8"));
 
-const VERSION_DATE = "20261012.2";
+const VERSION_DATE = "20261019.1";
 const REPO_URL = "https://github.com/0-V-linuxdo/LDPP";
+const RAW_URL = "https://raw.githubusercontent.com/0-V-linuxdo/LDPP/main/userscript";
 const displayVersion = `[${VERSION_DATE}] v${pkg.version}`;
+
+// Script managers check LDPP.meta.js for a newer @version and fetch LDPP.user.js from the repository. A dev build has
+// none, so it is never replaced by the release.
+const UPDATE_LINES = isDev ? "" : `// @updateURL    ${RAW_URL}/LDPP.meta.js
+// @downloadURL  ${RAW_URL}/LDPP.user.js
+`;
 
 const HEADER = `// ==UserScript==
 // @name         LD++
@@ -22,7 +29,7 @@ const HEADER = `// ==UserScript==
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  ${REPO_URL}
-// @match        https://linux.do/*
+${UPDATE_LINES}// @match        https://linux.do/*
 // @run-at       document-start
 // @grant        unsafeWindow
 // @grant        GM_getValue
