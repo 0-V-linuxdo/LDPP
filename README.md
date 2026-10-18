@@ -56,7 +56,7 @@ LINUX DO（linux.do）增强用户脚本。它把两个旧脚本合到一个脚�
 
 ## 为什么不再打架
 
-旧版的两个脚本各自监听 DOM、各自改标题和隐藏行，并以 DOM 当前的样子作为状态。DeArrow 改写标题后，屏蔽脚本按新标题重新判断；它隐藏或恢复行之后，总结脚本又重新插入按钮。两边互相触发，造成标题漂移和行反复隐藏 / 显示等问题（分析见 [`../docs/03-两脚本冲突分析.md`](../docs/03-两脚本冲突分析.md)）。
+旧版的两个脚本各自监听 DOM、各自改标题和隐藏行，并以 DOM 当前的样子作为状态。DeArrow 改写标题后，屏蔽脚本按新标题重新判断；它隐藏或恢复行之后，总结脚本又重新插入按钮。两边互相触发，造成标题漂移和行反复隐藏 / 显示等问题。
 
 LD++ 里，话题列表由 `src/api/TopicList.ts` 一个模块负责：
 
@@ -111,7 +111,7 @@ test/harness/           在真实 linux.do 页面上加载构建产物的验收�
 bun run test/harness/serve.ts
 ```
 
-然后在浏览器打开 `http://127.0.0.1:8787/test/harness/loader.html?to=https://linux.do/latest`。加载器会把 GM 垫片和构建产物带到 linux.do，AI 请求由垫片中的 mock 接口（`https://mock.ldpp.test/v1/chat/completions`）应答，不需要真实 Key。具体步骤见 [`../docs/04-LD++验收报告.md`](../docs/04-LD++验收报告.md)。
+然后在浏览器打开 `http://127.0.0.1:8787/test/harness/loader.html?to=https://linux.do/latest`。加载器会把 GM 垫片和构建产物带到 linux.do，AI 请求由垫片中的 mock 接口（`https://mock.ldpp.test/v1/chat/completions`）应答，不需要真实 Key。
 
 ## 隐私
 
