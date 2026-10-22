@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261023.1
+// @version      20261023.2
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261023.1] v1.0.0 — a modification for linux.do
+ * LD++ [20261023.2] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -2495,6 +2495,16 @@ html.ldpp-dialog-open {
         localStorage.setItem(LS_PREFIX + key, JSON.stringify(value));
     } catch (error) {
       logger.error(`写入 ${key} 失败`, error);
+    }
+  }
+  function gmDelete(key) {
+    try {
+      if (hasGM("GM_deleteValue"))
+        GM_deleteValue(key);
+      else
+        localStorage.removeItem(LS_PREFIX + key);
+    } catch (error) {
+      logger.warn(`删除 ${key} 失败`, error);
     }
   }
   function gmOnRemoteChange(key, onChange) {
@@ -11959,7 +11969,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.1] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"32444d8"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.2] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"920d8cb"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -14736,6 +14746,33 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
 
 `);
 
+  // src/plugins/deArrow/claims.ts
+  var TTL_MS = 5 * 60000;
+  var CONFIRM_MS = 150;
+  var tabId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  var keyFor = (kind, topicId) => `LDPP.dearrowClaim.${kind}.${topicId}`;
+  function holder(kind, topicId) {
+    const stored = gmGet(keyFor(kind, topicId), null);
+    if (!isObject(stored) || typeof stored.tab !== "string" || typeof stored.until !== "number" || stored.until <= Date.now())
+      return null;
+    return stored.tab;
+  }
+  function heldElsewhere(kind, topicId) {
+    const tab = holder(kind, topicId);
+    return tab !== null && tab !== tabId;
+  }
+  async function claim(kind, topicId, confirmMs = CONFIRM_MS) {
+    if (heldElsewhere(kind, topicId))
+      return false;
+    gmSet(keyFor(kind, topicId), { tab: tabId, until: Date.now() + TTL_MS });
+    await sleep(confirmMs);
+    return holder(kind, topicId) === tabId;
+  }
+  function release(kind, topicId) {
+    if (holder(kind, topicId) === tabId)
+      gmDelete(keyFor(kind, topicId));
+  }
+
   // src/plugins/deArrow/protocol.ts
   var JUDGE_BATCH = 20;
   var MAX_TITLE_LENGTH = 120;
@@ -15041,6 +15078,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   var marked2 = new Set;
   var judgeQueue = new Map;
   var judging = new Set;
+  var judgeRuns = new Map;
   var rewriting = new Map;
   var errors2 = new Map;
   var autoQueue = [];
@@ -15180,14 +15218,27 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     draining = true;
     try {
       while (judgeQueue.size && isPluginEnabled("DeArrow")) {
-        const batch = Array.from(judgeQueue.values()).slice(0, JUDGE_BATCH);
-        for (const item of batch) {
+        const picked = Array.from(judgeQueue.values()).slice(0, JUDGE_BATCH);
+        for (const item of picked) {
           judgeQueue.delete(item.topicId);
           judging.add(item.topicId);
           refreshButtons2(item.topicId);
         }
+        const claimed = await Promise.all(picked.map((item) => claim("judge", item.topicId)));
+        const batch = picked.filter((_, index) => claimed[index]);
+        for (const item of picked) {
+          if (batch.includes(item))
+            continue;
+          judging.delete(item.topicId);
+          refreshButtons2(item.topicId);
+        }
+        if (!batch.length)
+          continue;
+        const run = judgeBatch(batch);
+        for (const item of batch)
+          judgeRuns.set(item.topicId, run);
         try {
-          await judgeBatch(batch);
+          await run;
           closeToast("dearrow-judge");
         } catch (error) {
           logger12.warn("判断失败", error);
@@ -15196,8 +15247,11 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
           if (!(error instanceof AIError && (error.code === "NO_KEY" || error.code === "NO_PROFILE")))
             showToast(`DeArrow 判断失败：${errorMessage(error)}`, "error", { key: "dearrow-judge" });
         } finally {
+          DeArrowStates.flush();
           for (const item of batch) {
             judging.delete(item.topicId);
+            judgeRuns.delete(item.topicId);
+            release("judge", item.topicId);
             refreshButtons2(item.topicId);
           }
         }
@@ -15236,11 +15290,18 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     fixDraining = true;
     try {
       while (fixQueue.size && isPluginEnabled("DeArrow") && settings13.store.fixTypos) {
-        const batch = Array.from(fixQueue.values()).slice(0, FIX_BATCH);
-        for (const item of batch) {
+        const picked = Array.from(fixQueue.values()).slice(0, FIX_BATCH);
+        for (const item of picked) {
           fixQueue.delete(item.topicId);
           fixing.add(item.topicId);
         }
+        const claimed = await Promise.all(picked.map((item) => claim("fix", item.topicId)));
+        const batch = picked.filter((_, index) => claimed[index]);
+        for (const item of picked)
+          if (!batch.includes(item))
+            fixing.delete(item.topicId);
+        if (!batch.length)
+          continue;
         try {
           await fixBatch(batch);
           closeToast("dearrow-fix");
@@ -15251,8 +15312,11 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
           if (!(error instanceof AIError && (error.code === "NO_KEY" || error.code === "NO_PROFILE")))
             showToast(`DeArrow 错别字修正失败：${errorMessage(error)}`, "error", { key: "dearrow-fix" });
         } finally {
-          for (const item of batch)
+          DeArrowStates.flush();
+          for (const item of batch) {
             fixing.delete(item.topicId);
+            release("fix", item.topicId);
+          }
         }
       }
     } finally {
@@ -15269,7 +15333,18 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       refreshButtons2(topicId);
     };
     setPhase("正在判断…");
+    let claimed = false;
     try {
+      claimed = await claim("rewrite", topicId);
+      if (!claimed) {
+        if (!automatic)
+          showToast("另一个标签页正在改写这个话题，结果会自动同步过来", "info", { topicId, key: `dearrow:${topicId}` });
+        return;
+      }
+      judgeQueue.delete(topicId);
+      await judgeRuns.get(topicId)?.catch(() => {
+        return;
+      });
       if (typeof stateFor(topicId, title)?.verdict !== "boolean")
         await judgeBatch([input]);
       if (automatic && stateFor(topicId, title)?.verdict !== true)
@@ -15302,6 +15377,10 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       if (!automatic)
         showToast(`DeArrow 改写失败：${errorMessage(error)}`, "error", { topicId, key: `dearrow:${topicId}` });
     } finally {
+      if (claimed) {
+        DeArrowStates.flush();
+        release("rewrite", topicId);
+      }
       rewriting.delete(topicId);
       refreshButtons2(topicId);
       schedule();
@@ -15358,14 +15437,14 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       } else if (marked2.delete(row.id)) {
         setTitleMark(row.id, null);
       }
-      if (automatic && !row.hidden && settings13.store.fixTypos && !state?.rewrittenTitle && !state?.fixCheckedAt && !fixing.has(row.id) && fixFailed.get(row.id) !== row.originalTitle) {
+      if (automatic && !row.hidden && settings13.store.fixTypos && !state?.rewrittenTitle && !state?.fixCheckedAt && !fixing.has(row.id) && fixFailed.get(row.id) !== row.originalTitle && !heldElsewhere("fix", row.id)) {
         fixQueue.set(row.id, { topicId: row.id, title: row.originalTitle });
       }
       if (!automatic || row.hidden || errorFor(row.id, row.originalTitle))
         continue;
-      if (typeof state?.verdict !== "boolean" && !judging.has(row.id) && !rewriting.has(row.id)) {
+      if (typeof state?.verdict !== "boolean" && !judging.has(row.id) && !rewriting.has(row.id) && !heldElsewhere("judge", row.id)) {
         judgeQueue.set(row.id, { topicId: row.id, title: row.originalTitle });
-      } else if (settings13.store.autoRewrite && state?.verdict === true && !state.rewrittenTitle && !rewriting.has(row.id) && !autoQueue.some((item) => item.topicId === row.id)) {
+      } else if (settings13.store.autoRewrite && state?.verdict === true && !state.rewrittenTitle && !rewriting.has(row.id) && !heldElsewhere("rewrite", row.id) && !autoQueue.some((item) => item.topicId === row.id)) {
         autoQueue.push({ topicId: row.id, title: row.originalTitle });
       }
     }
@@ -18079,7 +18158,7 @@ div#reply-control .reply-area {
   // src/LDPP.ts
   var logger15 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261023.1] v1.0.0";
+  var version = "[20261023.2] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -18093,7 +18172,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger15.info(`LD++ ${"[20261023.1] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger15.info(`LD++ ${"[20261023.2] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 

@@ -24,6 +24,7 @@ import { errorMessage } from "@utils/misc";
 import definePlugin, { OptionType } from "@utils/types";
 
 import { profileChoices } from "../_core/ai";
+import { claim, heldElsewhere, release } from "./claims";
 import { buildJudgeMessages, buildRewriteMessages, DEFAULT_JUDGE_PROMPT, DEFAULT_REWRITE_PROMPT, JUDGE_BATCH, type JudgeInput, parseJudge, parseRewrite } from "./protocol";
 import { checkScope, compileScope, DEFAULT_SCOPE, scopeMatches } from "./scope";
 import { acceptFixes, buildFixMessages, DEFAULT_FIX_PROMPT, describeFixes, FIX_BATCH, fixMark, parseFixes } from "./typos";
@@ -106,6 +107,8 @@ const overridden = new Set<string>();
 const marked = new Set<string>();
 const judgeQueue = new Map<string, JudgeInput>();
 const judging = new Set<string>();
+/** The judge request in flight for each topic, so a rewrite waits for it instead of sending another. */
+const judgeRuns = new Map<string, Promise<unknown>>();
 const rewriting = new Map<string, string>();
 const errors = new Map<string, RuntimeError>();
 const autoQueue: JudgeInput[] = [];
@@ -242,22 +245,36 @@ async function drainJudge() {
     draining = true;
     try {
         while (judgeQueue.size && isPluginEnabled("DeArrow")) {
-            const batch = Array.from(judgeQueue.values()).slice(0, JUDGE_BATCH);
-            for (const item of batch) {
+            const picked = Array.from(judgeQueue.values()).slice(0, JUDGE_BATCH);
+            for (const item of picked) {
                 judgeQueue.delete(item.topicId);
                 judging.add(item.topicId);
                 refreshButtons(item.topicId);
             }
+            const claimed = await Promise.all(picked.map(item => claim("judge", item.topicId)));
+            const batch = picked.filter((_, index) => claimed[index]);
+            for (const item of picked) {
+                if (batch.includes(item)) continue;
+                judging.delete(item.topicId);
+                refreshButtons(item.topicId);
+            }
+            if (!batch.length) continue;
+            const run = judgeBatch(batch);
+            for (const item of batch) judgeRuns.set(item.topicId, run);
             try {
-                await judgeBatch(batch);
+                await run;
                 closeToast("dearrow-judge");
             } catch (error) {
                 logger.warn("判断失败", error);
                 for (const item of batch) errors.set(item.topicId, { kind: "judge", message: errorMessage(error), title: item.title });
                 if (!(error instanceof AIError && (error.code === "NO_KEY" || error.code === "NO_PROFILE"))) showToast(`DeArrow 判断失败：${errorMessage(error)}`, "error", { key: "dearrow-judge" });
             } finally {
+                // Store the results before letting go, or another tab could pick the topics up again in between.
+                DeArrowStates.flush();
                 for (const item of batch) {
                     judging.delete(item.topicId);
+                    judgeRuns.delete(item.topicId);
+                    release("judge", item.topicId);
                     refreshButtons(item.topicId);
                 }
             }
@@ -296,11 +313,15 @@ async function drainFix() {
     fixDraining = true;
     try {
         while (fixQueue.size && isPluginEnabled("DeArrow") && settings.store.fixTypos) {
-            const batch = Array.from(fixQueue.values()).slice(0, FIX_BATCH);
-            for (const item of batch) {
+            const picked = Array.from(fixQueue.values()).slice(0, FIX_BATCH);
+            for (const item of picked) {
                 fixQueue.delete(item.topicId);
                 fixing.add(item.topicId);
             }
+            const claimed = await Promise.all(picked.map(item => claim("fix", item.topicId)));
+            const batch = picked.filter((_, index) => claimed[index]);
+            for (const item of picked) if (!batch.includes(item)) fixing.delete(item.topicId);
+            if (!batch.length) continue;
             try {
                 await fixBatch(batch);
                 closeToast("dearrow-fix");
@@ -309,7 +330,11 @@ async function drainFix() {
                 for (const item of batch) fixFailed.set(item.topicId, item.title);
                 if (!(error instanceof AIError && (error.code === "NO_KEY" || error.code === "NO_PROFILE"))) showToast(`DeArrow 错别字修正失败：${errorMessage(error)}`, "error", { key: "dearrow-fix" });
             } finally {
-                for (const item of batch) fixing.delete(item.topicId);
+                DeArrowStates.flush();
+                for (const item of batch) {
+                    fixing.delete(item.topicId);
+                    release("fix", item.topicId);
+                }
             }
         }
     } finally {
@@ -326,7 +351,16 @@ async function rewrite(input: JudgeInput, automatic: boolean) {
         refreshButtons(topicId);
     };
     setPhase("正在判断…");
+    let claimed = false;
     try {
+        claimed = await claim("rewrite", topicId);
+        if (!claimed) {
+            if (!automatic) showToast("另一个标签页正在改写这个话题，结果会自动同步过来", "info", { topicId, key: `dearrow:${topicId}` });
+            return;
+        }
+        // A judge request for this topic may already be on its way from the list; wait for it rather than send another.
+        judgeQueue.delete(topicId);
+        await judgeRuns.get(topicId)?.catch(() => undefined);
         if (typeof stateFor(topicId, title)?.verdict !== "boolean") await judgeBatch([input]);
         if (automatic && stateFor(topicId, title)?.verdict !== true) return;
         const profile = requireProfile(getProfile(String(settings.store.rewriteProfile ?? "") || undefined));
@@ -355,6 +389,10 @@ async function rewrite(input: JudgeInput, automatic: boolean) {
         errors.set(topicId, { kind: "rewrite", message: errorMessage(error), title });
         if (!automatic) showToast(`DeArrow 改写失败：${errorMessage(error)}`, "error", { topicId, key: `dearrow:${topicId}` });
     } finally {
+        if (claimed) {
+            DeArrowStates.flush();
+            release("rewrite", topicId);
+        }
         rewriting.delete(topicId);
         refreshButtons(topicId);
         schedule();
@@ -410,13 +448,13 @@ function process(rows: readonly TopicRow[]) {
         } else if (marked.delete(row.id)) {
             setTitleMark(row.id, null);
         }
-        if (automatic && !row.hidden && settings.store.fixTypos && !state?.rewrittenTitle && !state?.fixCheckedAt && !fixing.has(row.id) && fixFailed.get(row.id) !== row.originalTitle) {
+        if (automatic && !row.hidden && settings.store.fixTypos && !state?.rewrittenTitle && !state?.fixCheckedAt && !fixing.has(row.id) && fixFailed.get(row.id) !== row.originalTitle && !heldElsewhere("fix", row.id)) {
             fixQueue.set(row.id, { topicId: row.id, title: row.originalTitle });
         }
         if (!automatic || row.hidden || errorFor(row.id, row.originalTitle)) continue;
-        if (typeof state?.verdict !== "boolean" && !judging.has(row.id) && !rewriting.has(row.id)) {
+        if (typeof state?.verdict !== "boolean" && !judging.has(row.id) && !rewriting.has(row.id) && !heldElsewhere("judge", row.id)) {
             judgeQueue.set(row.id, { topicId: row.id, title: row.originalTitle });
-        } else if (settings.store.autoRewrite && state?.verdict === true && !state.rewrittenTitle && !rewriting.has(row.id) && !autoQueue.some(item => item.topicId === row.id)) {
+        } else if (settings.store.autoRewrite && state?.verdict === true && !state.rewrittenTitle && !rewriting.has(row.id) && !heldElsewhere("rewrite", row.id) && !autoQueue.some(item => item.topicId === row.id)) {
             autoQueue.push({ topicId: row.id, title: row.originalTitle });
         }
     }
