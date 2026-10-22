@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import "./styles.css";
+
 import { Summarized } from "@api/DataStore";
 import { subscribe } from "@api/Events";
 import { showToast } from "@api/Notifications";

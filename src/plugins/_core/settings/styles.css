@@ -299,6 +299,7 @@
 
 .ldpp-field-error {
     margin: 0;
+    overflow-wrap: anywhere;
     color: var(--ldpp-danger);
     font-size: var(--ldpp-font-sm);
 }

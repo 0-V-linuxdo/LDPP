@@ -217,8 +217,11 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    min-width: 0;
     color: var(--ldpp-muted);
     font-size: var(--ldpp-font-sm);
+    /* Retry statuses quote the failed request's URL. */
+    overflow-wrap: anywhere;
 }
 
 .ldpp-sv-stale {

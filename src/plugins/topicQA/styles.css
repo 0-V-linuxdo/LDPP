@@ -101,6 +101,8 @@
     display: flex;
     align-items: center;
     gap: 0.45rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
     color: var(--ldpp-muted);
     font-size: var(--ldpp-font-sm);
 }

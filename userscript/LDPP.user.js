@@ -1853,6 +1853,7 @@ select.ldpp-input {
 
 .ldpp-hint {
     margin: 0.35rem 0;
+    overflow-wrap: anywhere;
     color: var(--ldpp-muted);
     font-size: var(--ldpp-font-sm);
     line-height: 1.5;
@@ -2291,7 +2292,7 @@ select.ldpp-input {
 }
 
 .ldpp-toast-text {
-    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .ldpp-toast-topic {
@@ -2311,6 +2312,8 @@ select.ldpp-input {
 }
 
 .ldpp-spinner {
+    /* Fixed size in any flex row: a long status beside it would otherwise squeeze the circle into a thin pill. */
+    flex: none;
     display: inline-block;
     width: 0.9rem;
     height: 0.9rem;
@@ -2345,6 +2348,8 @@ select.ldpp-input {
 
 .ldpp-error-box {
     padding: 0.6rem 0.75rem;
+    /* Error messages carry unbroken URLs; wrap them instead of scrolling the pane sideways. */
+    overflow-wrap: anywhere;
     border-radius: var(--d-border-radius, 6px);
     background: var(--danger-low, color-mix(in srgb, var(--ldpp-danger) 12%, transparent));
 }
@@ -6443,6 +6448,7 @@ Please report this to https://github.com/markedjs/marked.`;
 
 .ldpp-field-error {
     margin: 0;
+    overflow-wrap: anywhere;
     color: var(--ldpp-danger);
     font-size: var(--ldpp-font-sm);
 }
@@ -12185,6 +12191,8 @@ tr.topic-list-item.ldpp-flash > td {
     display: flex;
     align-items: center;
     gap: 0.45rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
     color: var(--ldpp-muted);
     font-size: var(--ldpp-font-sm);
 }
@@ -13655,8 +13663,11 @@ div#reply-control .reply-area {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    min-width: 0;
     color: var(--ldpp-muted);
     font-size: var(--ldpp-font-sm);
+    /* Retry statuses quote the failed request's URL. */
+    overflow-wrap: anywhere;
 }
 
 .ldpp-sv-stale {
@@ -14332,6 +14343,13 @@ html.ldpp-sidebar-width-resizing * {
       gesture = null;
     }
   });
+
+  // ldpp-css:src/plugins/driveSync/styles.css
+  registerStyle("driveSync", `/* Failure statuses quote the request URL; wrap it instead of widening the settings pane. */
+.ldpp-drive-status {
+    overflow-wrap: anywhere;
+}
+`);
 
   // src/plugins/driveSync/client.ts
   var TOKEN_URLS = ["https://oauth2.googleapis.com/token", "https://www.googleapis.com/oauth2/v4/token"];

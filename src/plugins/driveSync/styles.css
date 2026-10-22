@@ -1,0 +1,4 @@
+/* Failure statuses quote the request URL; wrap it instead of widening the settings pane. */
+.ldpp-drive-status {
+    overflow-wrap: anywhere;
+}
