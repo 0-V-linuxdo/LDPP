@@ -160,18 +160,25 @@ export function normalizeDeArrowMap(raw: unknown): Record<string, DeArrowState> 
     return out;
 }
 
+/** The newer of two states by `at`; a tie goes the same way whichever comes first, so every tab and device settles on one. */
+function newer(a: DeArrowState, b: DeArrowState, at: "updatedAt" | "verdictUpdatedAt" | "rewrittenAt" | "fixCheckedAt"): DeArrowState {
+    const diff = time(b[at]) - time(a[at]);
+    if (diff) return diff > 0 ? b : a;
+    return JSON.stringify(b) > JSON.stringify(a) ? b : a;
+}
+
 function pickBundle(a: DeArrowState, b: DeArrowState, at: "verdictUpdatedAt" | "rewrittenAt" | "fixCheckedAt", present: (state: DeArrowState) => boolean): DeArrowState | null {
     const hasA = present(a);
     const hasB = present(b);
     if (!hasA) return hasB ? b : null;
     if (!hasB) return a;
-    return time(b[at]) > time(a[at]) ? b : a;
+    return newer(a, b, at);
 }
 
 export function mergeDeArrowState(a: DeArrowState | undefined, b: DeArrowState | undefined): DeArrowState | undefined {
     if (!a) return b;
     if (!b) return a;
-    if (a.originalTitle !== b.originalTitle) return time(b.updatedAt) > time(a.updatedAt) ? b : a;
+    if (a.originalTitle !== b.originalTitle) return newer(a, b, "updatedAt");
     const merged: DeArrowState = { originalTitle: a.originalTitle, updatedAt: latest(a.updatedAt, b.updatedAt) };
     const verdict = pickBundle(a, b, "verdictUpdatedAt", state => typeof state.verdict === "boolean");
     if (verdict) {

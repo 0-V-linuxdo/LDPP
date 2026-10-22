@@ -8,27 +8,54 @@ import { gmGet, gmOnRemoteChange, gmSet } from "@utils/gm";
 import { isObject } from "@utils/guards";
 
 import { type DataChangeSource, type DataStoreName, dispatch } from "./Events";
-import { type DeArrowState, normalizeDeArrowMap, normalizeQAList, normalizeSummaryList, type QARecord, type SummaryRecord } from "./records";
+import { type DeArrowState, mergeDeArrowState, normalizeDeArrowMap, normalizeQAList, normalizeSummaryList, type QARecord, type SummaryRecord } from "./records";
 
 const SAVE_DELAY_MS = 250;
 
 export class RecordStore<T> {
     private cache: Record<string, T> | null = null;
     private timer: ReturnType<typeof setTimeout> | null = null;
+    /** Ids changed here since the last flush; only these are written over what other tabs stored. */
+    private readonly dirty = new Set<string>();
+    private replacing = false;
 
-    constructor(readonly name: DataStoreName, readonly key: string, private readonly normalize: (raw: unknown) => Record<string, T>) {}
+    /**
+     * `merge`, when given, settles an entry both this tab and storage hold. It must pick the same winner whatever
+     * the argument order, so tabs that hear each other's writes out of order still end up showing the same value.
+     */
+    constructor(readonly name: DataStoreName, readonly key: string, private readonly normalize: (raw: unknown) => Record<string, T>, private readonly merge?: (local: T, stored: T) => T) {}
 
     private load(): Record<string, T> {
         this.cache ??= this.normalize(gmGet(this.key, {}));
         return this.cache;
     }
 
+    private settle(local: T | undefined, stored: T | undefined, pending: boolean): T | undefined {
+        if (local === undefined) return pending ? undefined : stored;
+        if (stored === undefined) return pending ? local : undefined;
+        if (this.merge) return this.merge(local, stored);
+        return pending ? local : stored;
+    }
+
+    /** Folds what another tab stored into this tab's copy, keeping the changes this tab has not flushed yet. */
+    private absorb(stored: Record<string, T>): string[] {
+        const prev = this.load();
+        if (this.replacing) return [];
+        const next: Record<string, T> = {};
+        const changed: string[] = [];
+        for (const id of new Set([...Object.keys(prev), ...Object.keys(stored)])) {
+            const value = this.settle(prev[id], stored[id], this.dirty.has(id));
+            if (value !== undefined) next[id] = value;
+            if (JSON.stringify(value) !== JSON.stringify(prev[id])) changed.push(id);
+        }
+        this.cache = next;
+        return changed;
+    }
+
     watchRemote() {
         gmOnRemoteChange(this.key, value => {
-            const prev = this.load();
-            this.cache = this.normalize(value);
-            const ids = new Set([...Object.keys(prev), ...Object.keys(this.cache)]);
-            dispatch("dataChange", { store: this.name, ids: Array.from(ids), source: "remote" });
+            const ids = this.absorb(this.normalize(value));
+            if (ids.length) dispatch("dataChange", { store: this.name, ids, source: "remote" });
         });
     }
 
@@ -56,6 +83,7 @@ export class RecordStore<T> {
             const value = entries[id];
             if (value === undefined) delete data[id];
             else data[id] = value;
+            this.dirty.add(id);
         }
         this.schedule();
         dispatch("dataChange", { store: this.name, ids, source });
@@ -69,6 +97,7 @@ export class RecordStore<T> {
         const prev = this.load();
         const ids = Array.from(new Set([...Object.keys(prev), ...Object.keys(next)]));
         this.cache = { ...next };
+        this.replacing = true;
         this.schedule();
         dispatch("dataChange", { store: this.name, ids, source });
     }
@@ -76,7 +105,20 @@ export class RecordStore<T> {
     flush() {
         if (this.timer) clearTimeout(this.timer);
         this.timer = null;
-        if (this.cache) gmSet(this.key, this.cache);
+        if (!this.cache) return;
+        if (this.replacing) {
+            this.replacing = false;
+            this.dirty.clear();
+            gmSet(this.key, this.cache);
+            return;
+        }
+        if (!this.dirty.size) return;
+        // Write only this tab's changes over what is stored now: writing the whole copy would put back
+        // entries another tab has changed since, and the tabs would keep overwriting each other.
+        const ids = this.absorb(this.normalize(gmGet(this.key, {})));
+        this.dirty.clear();
+        gmSet(this.key, this.cache);
+        if (ids.length) dispatch("dataChange", { store: this.name, ids, source: "remote" });
     }
 
     private schedule() {
@@ -107,7 +149,7 @@ function flagMap(raw: unknown): Record<string, true> {
 export const Summaries = new RecordStore<SummaryRecord[]>("summaries", "LDPP.summaries", listMap(normalizeSummaryList));
 export const Questions = new RecordStore<QARecord[]>("questions", "LDPP.questions", listMap(normalizeQAList));
 export const Summarized = new RecordStore<true>("summarized", "LDPP.summarized", flagMap);
-export const DeArrowStates = new RecordStore<DeArrowState>("dearrow", "LDPP.dearrow", normalizeDeArrowMap);
+export const DeArrowStates = new RecordStore<DeArrowState>("dearrow", "LDPP.dearrow", normalizeDeArrowMap, (local, stored) => mergeDeArrowState(local, stored) ?? local);
 
 export const ALL_STORES = [Summaries, Questions, Summarized, DeArrowStates];
 
