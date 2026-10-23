@@ -7,11 +7,11 @@
 import { AIError, type AIProfile, type ChatMessage, chatWithRetry, getProfile, requireProfile, userContent } from "@api/AI";
 import { rememberTopicTitle } from "@api/Discourse";
 import { addSummary, hasSummary, Summarized } from "@api/DataStore";
-import { dispatch } from "@api/Events";
 import { prepareImages } from "@api/Images";
 import { currentRoute } from "@api/Navigation";
 import { showToast, type ToastHandle } from "@api/Notifications";
 import { buildTopicContent, type TopicContent } from "@api/TopicContent";
+import { focusTopic } from "@api/TopicList";
 import { Logger } from "@utils/Logger";
 import { abortError, errorMessage, isAbortError, randomId } from "@utils/misc";
 
@@ -82,12 +82,6 @@ export function cancelSummary(topicId: string) {
     const op = operations.get(topicId);
     if (!op) return;
     op.controller.abort();
-}
-
-export function focusTopic(topicId: string, view: "summary" | "question" = "summary") {
-    const event = { topicId, view, handled: false };
-    dispatch("focusTopic", event);
-    if (!event.handled) location.assign(`/t/topic/${topicId}`);
 }
 
 export async function pullRemote(topicId: string, signal?: AbortSignal): Promise<boolean> {

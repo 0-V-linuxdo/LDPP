@@ -18,7 +18,8 @@ export interface LDPPEventMap {
     dataChange: { store: DataStoreName; ids: string[]; source: DataChangeSource };
     openSettings: { tab?: string; plugin?: string };
     summaryUpdated: { topicId: string };
-    focusTopic: { topicId: string; view: "summary" | "question"; handled: boolean };
+    /** "locate" only brings the topic into view; "summary" / "question" also open that panel. */
+    focusTopic: { topicId: string; view: "summary" | "question" | "locate"; handled: boolean };
 }
 
 export type LDPPEvent = keyof LDPPEventMap;

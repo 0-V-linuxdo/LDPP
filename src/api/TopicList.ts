@@ -9,7 +9,8 @@ import { Logger } from "@utils/Logger";
 import { applyEdits, normalizeText, type TextEdit } from "@utils/text";
 
 import { rememberTopicTitle } from "./Discourse";
-import { checkRoute } from "./Navigation";
+import { dispatch } from "./Events";
+import { checkRoute, currentRoute, routeTo } from "./Navigation";
 
 const logger = new Logger("TopicList", "#94e2d5");
 
@@ -461,6 +462,31 @@ export function visibleRows(): TopicRow[] {
 
 export function rowsForTopic(topicId: string): TopicRow[] {
     return current.filter(row => row.id === topicId && row.el.isConnected);
+}
+
+export function flashRow(row: TopicRow) {
+    row.el.classList.remove("ldpp-flash");
+    void row.el.offsetWidth;
+    row.el.classList.add("ldpp-flash");
+    setTimeout(() => row.el.classList.remove("ldpp-flash"), 1600);
+}
+
+/**
+ * What clicking a topic toast does: plugins get the first say (list panel, topic sidebar); otherwise the topic's row
+ * is scrolled into view, and failing that the topic itself is opened.
+ */
+export function focusTopic(topicId: string, view: "summary" | "question" | "locate" = "summary") {
+    const event = { topicId, view, handled: false };
+    dispatch("focusTopic", event);
+    if (event.handled) return;
+    const row = rowsForTopic(topicId).find(item => !item.hidden);
+    if (row) {
+        row.el.scrollIntoView({ block: "center", behavior: "smooth" });
+        flashRow(row);
+        return;
+    }
+    if (currentRoute().topicId === topicId) return;
+    routeTo(`/t/topic/${topicId}`);
 }
 
 export function getPanelRow(row: TopicRow, create: boolean): HTMLElement | null {

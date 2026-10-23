@@ -1025,6 +1025,17 @@ select.ldpp-input {
     cursor: pointer;
 }
 
+tr.topic-list-item.ldpp-flash > td {
+    animation: ldpp-flash 1.6s ease;
+}
+
+@keyframes ldpp-flash {
+    0%,
+    60% {
+        background-color: var(--ldpp-accent-soft);
+    }
+}
+
 .ldpp-toast-dot {
     flex: none;
     width: 0.55rem;

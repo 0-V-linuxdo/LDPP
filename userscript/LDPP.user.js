@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261023.2
+// @version      20261023.3
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261023.2] v1.0.0 — a modification for linux.do
+ * LD++ [20261023.3] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -1015,6 +1015,92 @@ ${value} EOT;`;
     };
   });
 
+  // src/LDPP.ts
+  var exports_LDPP = {};
+  __export(exports_LDPP, {
+    AI: () => exports_AI,
+    DataStore: () => exports_DataStore,
+    PlainSettings: () => PlainSettings,
+    Settings: () => Settings,
+    SettingsStore: () => SettingsStore2,
+    TopicList: () => exports_TopicList,
+    closeAllDialogs: () => closeAllDialogs,
+    confirmDialog: () => confirmDialog,
+    currentRoute: () => currentRoute,
+    dispatch: () => dispatch,
+    init: () => init,
+    isPluginEnabled: () => isPluginEnabled,
+    openDialog: () => openDialog,
+    plugins: () => plugins,
+    setPluginEnabled: () => setPluginEnabled,
+    showToast: () => showToast,
+    startPlugin: () => startPlugin,
+    stopPlugin: () => stopPlugin,
+    subscribe: () => subscribe,
+    version: () => version
+  });
+
+  // src/api/DataStore.ts
+  var exports_DataStore = {};
+  __export(exports_DataStore, {
+    ALL_STORES: () => ALL_STORES,
+    DeArrowStates: () => DeArrowStates,
+    Questions: () => Questions,
+    RecordStore: () => RecordStore,
+    Summaries: () => Summaries,
+    Summarized: () => Summarized,
+    addQuestion: () => addQuestion,
+    addSummary: () => addSummary,
+    hasSummary: () => hasSummary,
+    initDataStores: () => initDataStores
+  });
+
+  // src/api/TopicList.ts
+  var exports_TopicList = {};
+  __export(exports_TopicList, {
+    displayedTitle: () => displayedTitle,
+    flashRow: () => flashRow,
+    flushNow: () => flushNow,
+    focusTopic: () => focusTopic,
+    getPanelRow: () => getPanelRow,
+    getPassCount: () => getPassCount,
+    getRows: () => getRows,
+    isRevealHidden: () => isRevealHidden,
+    onPass: () => onPass,
+    registerDecorator: () => registerDecorator,
+    registerFilter: () => registerFilter,
+    registerProcessor: () => registerProcessor,
+    removePanelRow: () => removePanelRow,
+    rowsForTopic: () => rowsForTopic,
+    schedule: () => schedule,
+    setRevealHidden: () => setRevealHidden,
+    setTitleMark: () => setTitleMark,
+    setTitleOverride: () => setTitleOverride,
+    setTitlePreview: () => setTitlePreview,
+    startTopicList: () => startTopicList,
+    unregisterDecorator: () => unregisterDecorator,
+    unregisterFilter: () => unregisterFilter,
+    unregisterProcessor: () => unregisterProcessor,
+    visibleRows: () => visibleRows
+  });
+
+  // src/api/AI.ts
+  var exports_AI = {};
+  __export(exports_AI, {
+    AIError: () => AIError,
+    DEFAULT_PROFILE: () => DEFAULT_PROFILE,
+    chat: () => chat,
+    chatWithRetry: () => chatWithRetry,
+    configureAI: () => configureAI,
+    describeError: () => describeError,
+    getProfile: () => getProfile,
+    getProfiles: () => getProfiles,
+    isRetryable: () => isRetryable,
+    normalizeProfile: () => normalizeProfile,
+    requireProfile: () => requireProfile,
+    userContent: () => userContent
+  });
+
   // src/utils/misc.ts
   var pageWindow = typeof unsafeWindow !== "undefined" && unsafeWindow ? unsafeWindow : globalThis;
   function sleep(ms, signal) {
@@ -1131,31 +1217,6 @@ ${value} EOT;`;
     }
     await navigator.clipboard.writeText(text);
   }
-
-  // src/LDPP.ts
-  var exports_LDPP = {};
-  __export(exports_LDPP, {
-    AI: () => exports_AI,
-    DataStore: () => exports_DataStore,
-    PlainSettings: () => PlainSettings,
-    Settings: () => Settings,
-    SettingsStore: () => SettingsStore2,
-    TopicList: () => exports_TopicList,
-    closeAllDialogs: () => closeAllDialogs,
-    confirmDialog: () => confirmDialog,
-    currentRoute: () => currentRoute,
-    dispatch: () => dispatch,
-    init: () => init,
-    isPluginEnabled: () => isPluginEnabled,
-    openDialog: () => openDialog,
-    plugins: () => plugins,
-    setPluginEnabled: () => setPluginEnabled,
-    showToast: () => showToast,
-    startPlugin: () => startPlugin,
-    stopPlugin: () => stopPlugin,
-    subscribe: () => subscribe,
-    version: () => version
-  });
 
   // src/utils/css.ts
   var registry = new Map;
@@ -2257,6 +2318,17 @@ select.ldpp-input {
     cursor: pointer;
 }
 
+tr.topic-list-item.ldpp-flash > td {
+    animation: ldpp-flash 1.6s ease;
+}
+
+@keyframes ldpp-flash {
+    0%,
+    60% {
+        background-color: var(--ldpp-accent-soft);
+    }
+}
+
 .ldpp-toast-dot {
     flex: none;
     width: 0.55rem;
@@ -2419,21 +2491,6 @@ html.ldpp-dialog-open {
     overflow: hidden;
 }
 `);
-
-  // src/api/DataStore.ts
-  var exports_DataStore = {};
-  __export(exports_DataStore, {
-    ALL_STORES: () => ALL_STORES,
-    DeArrowStates: () => DeArrowStates,
-    Questions: () => Questions,
-    RecordStore: () => RecordStore,
-    Summaries: () => Summaries,
-    Summarized: () => Summarized,
-    addQuestion: () => addQuestion,
-    addSummary: () => addSummary,
-    hasSummary: () => hasSummary,
-    initDataStores: () => initDataStores
-  });
 
   // src/utils/Logger.ts
   var CAP = "color:#111;font-weight:700;padding:1px 6px;border-radius:6px 0 0 6px;background:linear-gradient(135deg,#f9d77e,#f2a65a);";
@@ -5489,33 +5546,6 @@ Please report this to https://github.com/markedjs/marked.`;
     }
   }
 
-  // src/api/TopicList.ts
-  var exports_TopicList = {};
-  __export(exports_TopicList, {
-    displayedTitle: () => displayedTitle,
-    flushNow: () => flushNow,
-    getPanelRow: () => getPanelRow,
-    getPassCount: () => getPassCount,
-    getRows: () => getRows,
-    isRevealHidden: () => isRevealHidden,
-    onPass: () => onPass,
-    registerDecorator: () => registerDecorator,
-    registerFilter: () => registerFilter,
-    registerProcessor: () => registerProcessor,
-    removePanelRow: () => removePanelRow,
-    rowsForTopic: () => rowsForTopic,
-    schedule: () => schedule,
-    setRevealHidden: () => setRevealHidden,
-    setTitleMark: () => setTitleMark,
-    setTitleOverride: () => setTitleOverride,
-    setTitlePreview: () => setTitlePreview,
-    startTopicList: () => startTopicList,
-    unregisterDecorator: () => unregisterDecorator,
-    unregisterFilter: () => unregisterFilter,
-    unregisterProcessor: () => unregisterProcessor,
-    visibleRows: () => visibleRows
-  });
-
   // src/utils/dom.ts
   var SVG_NS = "http://www.w3.org/2000/svg";
   var LDPP_ATTR = "data-ldpp";
@@ -6187,6 +6217,27 @@ Please report this to https://github.com/markedjs/marked.`;
   function rowsForTopic(topicId) {
     return current2.filter((row) => row.id === topicId && row.el.isConnected);
   }
+  function flashRow(row) {
+    row.el.classList.remove("ldpp-flash");
+    row.el.offsetWidth;
+    row.el.classList.add("ldpp-flash");
+    setTimeout(() => row.el.classList.remove("ldpp-flash"), 1600);
+  }
+  function focusTopic(topicId, view = "summary") {
+    const event = { topicId, view, handled: false };
+    dispatch("focusTopic", event);
+    if (event.handled)
+      return;
+    const row = rowsForTopic(topicId).find((item) => !item.hidden);
+    if (row) {
+      row.el.scrollIntoView({ block: "center", behavior: "smooth" });
+      flashRow(row);
+      return;
+    }
+    if (currentRoute().topicId === topicId)
+      return;
+    routeTo(`/t/topic/${topicId}`);
+  }
   function getPanelRow(row, create) {
     const next = row.el.nextElementSibling;
     if (next?.matches("tr.ldpp-panel-row") && next.dataset.topicId === row.id)
@@ -6206,23 +6257,6 @@ Please report this to https://github.com/markedjs/marked.`;
   function getPassCount() {
     return passCount;
   }
-
-  // src/api/AI.ts
-  var exports_AI = {};
-  __export(exports_AI, {
-    AIError: () => AIError,
-    DEFAULT_PROFILE: () => DEFAULT_PROFILE,
-    chat: () => chat,
-    chatWithRetry: () => chatWithRetry,
-    configureAI: () => configureAI,
-    describeError: () => describeError,
-    getProfile: () => getProfile,
-    getProfiles: () => getProfiles,
-    isRetryable: () => isRetryable,
-    normalizeProfile: () => normalizeProfile,
-    requireProfile: () => requireProfile,
-    userContent: () => userContent
-  });
 
   // src/api/Http.ts
   var DEFAULT_TIMEOUT = 120000;
@@ -11969,7 +12003,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.2] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"920d8cb"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.3] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"fe48c57"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -12520,12 +12554,6 @@ ${body}`;
     if (!op)
       return;
     op.controller.abort();
-  }
-  function focusTopic(topicId, view = "summary") {
-    const event = { topicId, view, handled: false };
-    dispatch("focusTopic", event);
-    if (!event.handled)
-      location.assign(`/t/topic/${topicId}`);
   }
   async function pullRemote(topicId, signal) {
     for (const source of remoteSources) {
@@ -13343,7 +13371,7 @@ ${content.text}`
       messages[1].content = userContent(messages[1].content, images);
       const answer = await chatWithRetry(profile, messages, {
         signal: controller.signal,
-        onRetry: (notice) => showToast(`提问失败，第 ${notice.attempt}/${notice.total} 次重试…`, "warning", { topicId, key: `qa:${topicId}` })
+        onRetry: (notice) => showToast(`提问失败，第 ${notice.attempt}/${notice.total} 次重试…`, "warning", { topicId, key: `qa:${topicId}`, onClick: () => focusTopic(topicId, "question") })
       });
       addQuestion(topicId, { id: randomId("qa-"), question, answer, presetId: preset?.id ?? "", presetName: preset?.name ?? "", timestamp: new Date().toISOString(), model: profile.model || "未知模型" });
       return true;
@@ -13351,7 +13379,7 @@ ${content.text}`
       if (isAbortError(error))
         return false;
       logger11.error("提问失败", error);
-      showToast(`提问失败：${errorMessage(error)}`, "error", { topicId, key: `qa:${topicId}` });
+      showToast(`提问失败：${errorMessage(error)}`, "error", { topicId, key: `qa:${topicId}`, onClick: () => focusTopic(topicId, "question") });
       throw error;
     } finally {
       running.delete(topicId);
@@ -13885,7 +13913,7 @@ ${content.text}`
         maybeAutoSummarize();
       },
       focusTopic(event) {
-        if (event.handled || sidebarTopic() !== event.topicId)
+        if (event.handled || event.view === "locate" || sidebarTopic() !== event.topicId)
           return;
         event.handled = true;
         syncSidebar(sidebarOptions(), event.view);
@@ -14085,17 +14113,6 @@ ${content.text}`
     padding-right: max(0.5rem, calc(0.8rem - var(--ldpp-scrollbar, 0px)));
     overflow: auto;
     overscroll-behavior: contain;
-}
-
-tr.topic-list-item.ldpp-flash > td {
-    animation: ldpp-flash 1.6s ease;
-}
-
-@keyframes ldpp-flash {
-    0%,
-    60% {
-        background-color: var(--ldpp-accent-soft);
-    }
 }
 `);
 
@@ -14302,15 +14319,14 @@ tr.topic-list-item.ldpp-flash > td {
           close(id);
       },
       focusTopic(event) {
-        if (event.handled || !settings2.store.clickExpands)
+        if (event.handled || event.view === "locate" || !settings2.store.clickExpands)
           return;
         const row = rowsForTopic(event.topicId).find((item) => !item.hidden);
         if (!row)
           return;
         event.handled = true;
         row.el.scrollIntoView({ block: "center", behavior: "smooth" });
-        row.el.classList.add("ldpp-flash");
-        setTimeout(() => row.el.classList.remove("ldpp-flash"), 1600);
+        flashRow(row);
         openPanel2(row, event.view);
       },
       pluginToggle({ name }) {
@@ -15185,6 +15201,28 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     }
     rewrite({ topicId: row.id, title: row.originalTitle }, false);
   }
+  var batchFailures = new Map;
+  function batchToast(key, what, batch, error) {
+    batchFailures.set(key, batch);
+    const message = `DeArrow ${what}${batch.length > 1 ? `（${batch.length} 个话题）` : ""}：${errorMessage(error)}`;
+    showToast(message, "error", {
+      topicId: batch.length === 1 ? batch[0].topicId : undefined,
+      key,
+      onClick: () => locateBatch(batchFailures.get(key) ?? []),
+      onDismiss: () => batchFailures.delete(key)
+    });
+  }
+  function locateBatch(batch) {
+    const rows = batch.flatMap((item) => rowsForTopic(item.topicId).filter((row) => !row.hidden));
+    if (!rows.length) {
+      if (batch.length)
+        focusTopic(batch[0].topicId, "locate");
+      return;
+    }
+    rows[0].el.scrollIntoView({ block: "center", behavior: "smooth" });
+    for (const row of rows)
+      flashRow(row);
+  }
   function scheduleDrain() {
     if (drainTimer)
       return;
@@ -15245,7 +15283,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
           for (const item of batch)
             errors2.set(item.topicId, { kind: "judge", message: errorMessage(error), title: item.title });
           if (!(error instanceof AIError && (error.code === "NO_KEY" || error.code === "NO_PROFILE")))
-            showToast(`DeArrow 判断失败：${errorMessage(error)}`, "error", { key: "dearrow-judge" });
+            batchToast("dearrow-judge", "判断失败", batch, error);
         } finally {
           DeArrowStates.flush();
           for (const item of batch) {
@@ -15310,7 +15348,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
           for (const item of batch)
             fixFailed.set(item.topicId, item.title);
           if (!(error instanceof AIError && (error.code === "NO_KEY" || error.code === "NO_PROFILE")))
-            showToast(`DeArrow 错别字修正失败：${errorMessage(error)}`, "error", { key: "dearrow-fix" });
+            batchToast("dearrow-fix", "错别字修正失败", batch, error);
         } finally {
           DeArrowStates.flush();
           for (const item of batch) {
@@ -15338,7 +15376,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       claimed = await claim("rewrite", topicId);
       if (!claimed) {
         if (!automatic)
-          showToast("另一个标签页正在改写这个话题，结果会自动同步过来", "info", { topicId, key: `dearrow:${topicId}` });
+          showToast("另一个标签页正在改写这个话题，结果会自动同步过来", "info", { topicId, key: `dearrow:${topicId}`, onClick: () => focusTopic(topicId, "locate") });
         return;
       }
       judgeQueue.delete(topicId);
@@ -15375,7 +15413,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       logger12.warn(`改写话题 ${topicId} 失败`, error);
       errors2.set(topicId, { kind: "rewrite", message: errorMessage(error), title });
       if (!automatic)
-        showToast(`DeArrow 改写失败：${errorMessage(error)}`, "error", { topicId, key: `dearrow:${topicId}` });
+        showToast(`DeArrow 改写失败：${errorMessage(error)}`, "error", { topicId, key: `dearrow:${topicId}`, onClick: () => focusTopic(topicId, "locate") });
     } finally {
       if (claimed) {
         DeArrowStates.flush();
@@ -18158,7 +18196,7 @@ div#reply-control .reply-area {
   // src/LDPP.ts
   var logger15 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261023.2] v1.0.0";
+  var version = "[20261023.3] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -18172,7 +18210,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger15.info(`LD++ ${"[20261023.2] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger15.info(`LD++ ${"[20261023.3] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 

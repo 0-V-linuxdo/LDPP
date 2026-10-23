@@ -102,14 +102,3 @@
     overflow: auto;
     overscroll-behavior: contain;
 }
-
-tr.topic-list-item.ldpp-flash > td {
-    animation: ldpp-flash 1.6s ease;
-}
-
-@keyframes ldpp-flash {
-    0%,
-    60% {
-        background-color: var(--ldpp-accent-soft);
-    }
-}

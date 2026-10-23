@@ -152,7 +152,7 @@ export default definePlugin({
             maybeAutoSummarize();
         },
         focusTopic(event) {
-            if (event.handled || sidebarTopic() !== event.topicId) return;
+            if (event.handled || event.view === "locate" || sidebarTopic() !== event.topicId) return;
             event.handled = true;
             syncSidebar(sidebarOptions(), event.view);
             setSidebarOpen(true);

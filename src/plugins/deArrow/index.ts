@@ -15,7 +15,7 @@ import { isPluginEnabled } from "@api/PluginManager";
 import type { DeArrowState } from "@api/records";
 import { definePluginSettings } from "@api/Settings";
 import { buildTopicContent } from "@api/TopicContent";
-import { registerDecorator, registerProcessor, rowsForTopic, schedule, setTitleMark, setTitleOverride, setTitlePreview, type TopicRow, unregisterDecorator, unregisterProcessor } from "@api/TopicList";
+import { flashRow, focusTopic, registerDecorator, registerProcessor, rowsForTopic, schedule, setTitleMark, setTitleOverride, setTitlePreview, type TopicRow, unregisterDecorator, unregisterProcessor } from "@api/TopicList";
 import { DeArrowIcon } from "@components/icons";
 import { classes } from "@utils/css";
 import { h } from "@utils/dom";
@@ -213,6 +213,30 @@ function onButtonClick(row: TopicRow) {
     void rewrite({ topicId: row.id, title: row.originalTitle }, false);
 }
 
+// A batch toast is shared by every batch that fails, so a click goes to whichever batch failed last.
+const batchFailures = new Map<string, JudgeInput[]>();
+
+function batchToast(key: string, what: string, batch: JudgeInput[], error: unknown) {
+    batchFailures.set(key, batch);
+    const message = `DeArrow ${what}${batch.length > 1 ? `（${batch.length} 个话题）` : ""}：${errorMessage(error)}`;
+    showToast(message, "error", {
+        topicId: batch.length === 1 ? batch[0].topicId : undefined,
+        key,
+        onClick: () => locateBatch(batchFailures.get(key) ?? []),
+        onDismiss: () => batchFailures.delete(key),
+    });
+}
+
+function locateBatch(batch: JudgeInput[]) {
+    const rows = batch.flatMap(item => rowsForTopic(item.topicId).filter(row => !row.hidden));
+    if (!rows.length) {
+        if (batch.length) focusTopic(batch[0].topicId, "locate");
+        return;
+    }
+    rows[0].el.scrollIntoView({ block: "center", behavior: "smooth" });
+    for (const row of rows) flashRow(row);
+}
+
 function scheduleDrain() {
     if (drainTimer) return;
     drainTimer = setTimeout(() => {
@@ -267,7 +291,7 @@ async function drainJudge() {
             } catch (error) {
                 logger.warn("判断失败", error);
                 for (const item of batch) errors.set(item.topicId, { kind: "judge", message: errorMessage(error), title: item.title });
-                if (!(error instanceof AIError && (error.code === "NO_KEY" || error.code === "NO_PROFILE"))) showToast(`DeArrow 判断失败：${errorMessage(error)}`, "error", { key: "dearrow-judge" });
+                if (!(error instanceof AIError && (error.code === "NO_KEY" || error.code === "NO_PROFILE"))) batchToast("dearrow-judge", "判断失败", batch, error);
             } finally {
                 // Store the results before letting go, or another tab could pick the topics up again in between.
                 DeArrowStates.flush();
@@ -328,7 +352,7 @@ async function drainFix() {
             } catch (error) {
                 logger.warn("错别字修正失败", error);
                 for (const item of batch) fixFailed.set(item.topicId, item.title);
-                if (!(error instanceof AIError && (error.code === "NO_KEY" || error.code === "NO_PROFILE"))) showToast(`DeArrow 错别字修正失败：${errorMessage(error)}`, "error", { key: "dearrow-fix" });
+                if (!(error instanceof AIError && (error.code === "NO_KEY" || error.code === "NO_PROFILE"))) batchToast("dearrow-fix", "错别字修正失败", batch, error);
             } finally {
                 DeArrowStates.flush();
                 for (const item of batch) {
@@ -355,7 +379,7 @@ async function rewrite(input: JudgeInput, automatic: boolean) {
     try {
         claimed = await claim("rewrite", topicId);
         if (!claimed) {
-            if (!automatic) showToast("另一个标签页正在改写这个话题，结果会自动同步过来", "info", { topicId, key: `dearrow:${topicId}` });
+            if (!automatic) showToast("另一个标签页正在改写这个话题，结果会自动同步过来", "info", { topicId, key: `dearrow:${topicId}`, onClick: () => focusTopic(topicId, "locate") });
             return;
         }
         // A judge request for this topic may already be on its way from the list; wait for it rather than send another.
@@ -387,7 +411,7 @@ async function rewrite(input: JudgeInput, automatic: boolean) {
     } catch (error) {
         logger.warn(`改写话题 ${topicId} 失败`, error);
         errors.set(topicId, { kind: "rewrite", message: errorMessage(error), title });
-        if (!automatic) showToast(`DeArrow 改写失败：${errorMessage(error)}`, "error", { topicId, key: `dearrow:${topicId}` });
+        if (!automatic) showToast(`DeArrow 改写失败：${errorMessage(error)}`, "error", { topicId, key: `dearrow:${topicId}`, onClick: () => focusTopic(topicId, "locate") });
     } finally {
         if (claimed) {
             DeArrowStates.flush();

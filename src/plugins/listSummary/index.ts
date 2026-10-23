@@ -10,7 +10,7 @@ import { hasSummary, Summarized } from "@api/DataStore";
 import { subscribe } from "@api/Events";
 import { isPluginEnabled } from "@api/PluginManager";
 import { definePluginSettings } from "@api/Settings";
-import { getPanelRow, registerDecorator, registerProcessor, removePanelRow, rowsForTopic, schedule, type TopicRow, unregisterDecorator, unregisterProcessor } from "@api/TopicList";
+import { flashRow, getPanelRow, registerDecorator, registerProcessor, removePanelRow, rowsForTopic, schedule, type TopicRow, unregisterDecorator, unregisterProcessor } from "@api/TopicList";
 import { IconButton } from "@components/controls";
 import { CloseIcon, CloudIcon, ListIcon, QuestionIcon, SparkIcon } from "@components/icons";
 import { classes } from "@utils/css";
@@ -225,13 +225,12 @@ export default definePlugin({
             for (const id of Array.from(open.keys())) close(id);
         },
         focusTopic(event) {
-            if (event.handled || !toastSettings.store.clickExpands) return;
+            if (event.handled || event.view === "locate" || !toastSettings.store.clickExpands) return;
             const row = rowsForTopic(event.topicId).find(item => !item.hidden);
             if (!row) return;
             event.handled = true;
             row.el.scrollIntoView({ block: "center", behavior: "smooth" });
-            row.el.classList.add("ldpp-flash");
-            setTimeout(() => row.el.classList.remove("ldpp-flash"), 1600);
+            flashRow(row);
             openPanel(row, event.view);
         },
         pluginToggle({ name }) {
