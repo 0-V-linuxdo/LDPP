@@ -81,8 +81,8 @@ export function previewToasts() {
 
 export default definePlugin({
     name: "Notifications",
-    displayName: "通知",
-    description: "Toast 通知的开关与自动关闭时长。",
+    displayName: "通知设置",
+    description: "所有功能共用的通知设置：外观、自动关闭时长、点击话题通知后的跳转。必需，关不掉；不想看通知请在设置里关闭「显示 Toast 通知」。",
     tags: ["core"],
     icon: BellIcon,
     required: true,

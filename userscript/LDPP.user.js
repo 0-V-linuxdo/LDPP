@@ -7400,8 +7400,8 @@ Please report this to https://github.com/markedjs/marked.`;
   }
   var notifications_default = definePlugin({
     name: "Notifications",
-    displayName: "通知",
-    description: "Toast 通知的开关与自动关闭时长。",
+    displayName: "通知设置",
+    description: "所有功能共用的通知设置：外观、自动关闭时长、点击话题通知后的跳转。必需，关不掉；不想看通知请在设置里关闭「显示 Toast 通知」。",
     tags: ["core"],
     icon: BellIcon,
     required: true,
@@ -12315,7 +12315,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.9] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"705f3f5"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.9] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"94dcfa7"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
