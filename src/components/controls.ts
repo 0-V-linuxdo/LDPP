@@ -79,8 +79,8 @@ export function copyWithFeedback(button: HTMLElement, text: string): Promise<voi
     return copyText(text).then(() => flashFeedback(button, true, "已复制"), () => flashFeedback(button, false, "复制失败"));
 }
 
-export function Switch(checked: boolean, onChange: (value: boolean) => void, label?: string): HTMLLabelElement {
-    const input = h("input", { type: "checkbox", checked, attrs: { role: "switch", "aria-label": label ?? null } });
+export function Switch(checked: boolean, onChange: (value: boolean) => void, label?: string, disabled = false): HTMLLabelElement {
+    const input = h("input", { type: "checkbox", checked, disabled, attrs: { role: "switch", "aria-label": label ?? null } });
     input.addEventListener("change", () => onChange(input.checked));
     return h("label", { class: "ldpp-switch" }, input, h("span", { class: "ldpp-switch-track" }));
 }

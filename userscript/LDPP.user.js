@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261023.7
+// @version      20261023.8
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261023.7] v1.0.0 — a modification for linux.do
+ * LD++ [20261023.8] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -1823,6 +1823,15 @@ select.ldpp-input {
 
 .ldpp-switch input:checked + .ldpp-switch-track::after {
     transform: translateX(1.05rem);
+}
+
+.ldpp-switch:has(input:disabled),
+.ldpp-switch input:disabled {
+    cursor: not-allowed;
+}
+
+.ldpp-switch input:disabled + .ldpp-switch-track {
+    opacity: 0.5;
 }
 
 .ldpp-switch input:focus-visible + .ldpp-switch-track {
@@ -6686,6 +6695,7 @@ Please report this to https://github.com/markedjs/marked.`;
   var BellIcon = stroke(path("M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"), path("M10.3 21a1.9 1.9 0 0 0 3.4 0"));
   var BotIcon = stroke(path("M12 8V4H8"), ["rect", { x: "4", y: "8", width: "16", height: "12", rx: "2" }], path("M2 14h2"), path("M20 14h2"), path("M15 13v2"), path("M9 13v2"));
   var TriangleAlertIcon = stroke(path("m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"), path("M12 9v4"), path("M12 17h.01"));
+  var CircleAlertIcon = stroke(circle(12, 12, 10), path("M12 8v4"), path("M12 16h.01"));
   var InfoIcon = stroke(circle(12, 12, 9), path("M12 11v5"), path("M12 8h.01"));
   var ListIcon = stroke(path("M8 6h13"), path("M8 12h13"), path("M8 18h13"), path("M3 6h.01"), path("M3 12h.01"), path("M3 18h.01"));
   var SidebarIcon = stroke(["rect", { x: "3", y: "4", width: "18", height: "16", rx: "2" }], path("M15 4v16"));
@@ -6766,8 +6776,8 @@ Please report this to https://github.com/markedjs/marked.`;
   function copyWithFeedback(button, text) {
     return copyText(text).then(() => flashFeedback(button, true, "已复制"), () => flashFeedback(button, false, "复制失败"));
   }
-  function Switch(checked, onChange, label) {
-    const input = h("input", { type: "checkbox", checked, attrs: { role: "switch", "aria-label": label ?? null } });
+  function Switch(checked, onChange, label, disabled = false) {
+    const input = h("input", { type: "checkbox", checked, disabled, attrs: { role: "switch", "aria-label": label ?? null } });
     input.addEventListener("change", () => onChange(input.checked));
     return h("label", { class: "ldpp-switch" }, input, h("span", { class: "ldpp-switch-track" }));
   }
@@ -7608,6 +7618,21 @@ Please report this to https://github.com/markedjs/marked.`;
     white-space: nowrap;
 }
 
+.ldpp-plugins-separator {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin: 0.25rem 0;
+    border: 0;
+    border-top: 1px solid var(--ldpp-line);
+}
+
+.ldpp-plugin-card-required {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--primary-medium, var(--ldpp-muted));
+    line-height: 0;
+}
+
 .ldpp-plugin-card-crashed {
     display: inline-flex;
     flex-shrink: 0;
@@ -7615,6 +7640,7 @@ Please report this to https://github.com/markedjs/marked.`;
     line-height: 0;
 }
 
+.ldpp-plugin-card-required .ldpp-icon,
 .ldpp-plugin-card-crashed .ldpp-icon {
     width: 0.875rem;
     height: 0.875rem;
@@ -7686,7 +7712,9 @@ Please report this to https://github.com/markedjs/marked.`;
 }
 
 .ldpp-plugin-card.is-off .ldpp-plugin-card-name,
-.ldpp-plugin-card.is-off .ldpp-plugin-card-desc {
+.ldpp-plugin-card.is-off .ldpp-plugin-card-desc,
+.ldpp-plugin-card.is-required .ldpp-plugin-card-name,
+.ldpp-plugin-card.is-required .ldpp-plugin-card-desc {
     opacity: 0.6;
 }
 
@@ -12184,20 +12212,23 @@ ${section.code}
     const starred = listOf("starred").includes(plugin.name);
     const pinned = listOf("pinned").includes(plugin.name);
     const enabled = isPluginEnabled(plugin.name);
-    const crashed = enabled && !plugin.started && !plugin.required;
+    const { required } = plugin;
+    const crashed = enabled && !plugin.started && !required;
     const tags = (plugin.tags ?? []).map((tag) => TAG_LABEL[tag]).filter(Boolean);
-    const card = h("article", { class: classes("ldpp-plugin-card", !enabled && "is-off", crashed && "is-crashed"), dataset: { plugin: plugin.name } }, h("div", { class: "ldpp-plugin-card-body" }, h("div", { class: "ldpp-plugin-card-head" }, h("div", { class: "ldpp-plugin-card-name" }, h("span", { class: "ldpp-plugin-card-icon" }, plugin.icon?.(14) ?? PluginIcon(14)), h("span", { class: "ldpp-plugin-card-title", title: plugin.displayName }, plugin.displayName), crashed ? h("span", { class: "ldpp-plugin-card-crashed", title: "该功能启动失败", attrs: { "aria-label": "该功能启动失败" } }, TriangleAlertIcon(14)) : null, isNewPlugin(plugin.name) ? h("span", { class: "ldpp-plugin-card-new" }, "新") : null), h("div", { class: "ldpp-plugin-card-controls" }, iconToggle(starred, [StarIcon, StarFilledIcon], ["收藏", "取消收藏"], "ldpp-plugin-star", () => {
+    const card = h("article", { class: classes("ldpp-plugin-card", !enabled && "is-off", crashed && "is-crashed", required && "is-required"), dataset: { plugin: plugin.name } }, h("div", { class: "ldpp-plugin-card-body" }, h("div", { class: "ldpp-plugin-card-head" }, h("div", { class: "ldpp-plugin-card-name" }, h("span", { class: "ldpp-plugin-card-icon" }, plugin.icon?.(14) ?? PluginIcon(14)), h("span", { class: "ldpp-plugin-card-title", title: plugin.displayName }, plugin.displayName), required ? h("span", { class: "ldpp-plugin-card-required", title: "LD++ 运行必需，无法关闭", attrs: { "aria-label": "LD++ 运行必需，无法关闭" } }, CircleAlertIcon(14)) : null, crashed ? h("span", { class: "ldpp-plugin-card-crashed", title: "该功能启动失败", attrs: { "aria-label": "该功能启动失败" } }, TriangleAlertIcon(14)) : null, isNewPlugin(plugin.name) ? h("span", { class: "ldpp-plugin-card-new" }, "新") : null), h("div", { class: "ldpp-plugin-card-controls" }, iconToggle(starred, [StarIcon, StarFilledIcon], ["收藏", "取消收藏"], "ldpp-plugin-star", () => {
       toggleIn("starred", plugin.name);
       rerender();
-    }), iconToggle(pinned, [PinIcon, PinFilledIcon], ["置顶", "取消置顶"], "ldpp-plugin-pin", () => {
+    }), required ? null : iconToggle(pinned, [PinIcon, PinFilledIcon], ["置顶", "取消置顶"], "ldpp-plugin-pin", () => {
       toggleIn("pinned", plugin.name);
       rerender();
-    }), visibleSettings(plugin).length ? IconButton(SlidersIcon(), { title: "设置", className: "ldpp-row-btn ldpp-plugin-config", onClick: () => openPluginDialog(plugin) }) : null, Switch(enabled, (value) => setPluginEnabled(plugin.name, value), plugin.displayName))), h("p", { class: "ldpp-plugin-card-desc", title: plugin.description }, plugin.description)), h("div", { class: "ldpp-plugin-card-footer" }, tags.join(" · ") || " "));
+    }), visibleSettings(plugin).length ? IconButton(SlidersIcon(), { title: "设置", className: "ldpp-row-btn ldpp-plugin-config", onClick: () => openPluginDialog(plugin) }) : null, Switch(enabled, (value) => setPluginEnabled(plugin.name, value), plugin.displayName, required))), h("p", { class: "ldpp-plugin-card-desc", title: plugin.description }, plugin.description)), h("div", { class: "ldpp-plugin-card-footer" }, tags.join(" · ") || " "));
     return card;
   }
   function renderFeatures(focus) {
-    const all = Object.values(plugins).filter((plugin) => !plugin.hidden && !plugin.required).toSorted((a, b) => a.displayName.localeCompare(b.displayName, "zh"));
-    const tagTabs = Object.keys(TAG_LABEL).filter((tag) => all.some((plugin) => plugin.tags?.includes(tag)));
+    const shown = Object.values(plugins).filter((plugin) => !plugin.hidden).toSorted((a, b) => a.displayName.localeCompare(b.displayName, "zh"));
+    const optional = shown.filter((plugin) => !plugin.required);
+    const required = shown.filter((plugin) => plugin.required);
+    const tagTabs = Object.keys(TAG_LABEL).filter((tag) => shown.some((plugin) => plugin.tags?.includes(tag)));
     const tabs = [{ id: "favorites", label: "收藏" }, { id: "recent", label: "最新" }, { id: "all", label: "全部" }, ...tagTabs.map((tag) => ({ id: tag, label: TAG_LABEL[tag] ?? tag }))];
     let category = focus || !listOf("starred").length ? "all" : "favorites";
     let filter = "all";
@@ -12208,10 +12239,12 @@ ${section.code}
     const grid = trackScrollbar(h("div", { class: "ldpp-plugins-grid" }));
     const inTab = () => {
       const starred = listOf("starred");
-      let list = category === "favorites" ? starred.map((name) => all.find((plugin) => plugin.name === name)).filter((plugin) => Boolean(plugin)) : category === "recent" ? all.filter(isRecentlyUpdated).toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0) || a.displayName.localeCompare(b.displayName, "zh")) : category === "all" ? all : all.filter((plugin) => plugin.tags?.includes(category));
-      if (filter !== "all")
-        list = list.filter((plugin) => isPluginEnabled(plugin.name) === (filter === "enabled"));
-      return list;
+      let [list, below] = category === "favorites" ? [starred.map((name) => shown.find((plugin) => plugin.name === name)).filter((plugin) => Boolean(plugin)), []] : category === "recent" ? [shown.filter(isRecentlyUpdated).toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0) || a.displayName.localeCompare(b.displayName, "zh")), []] : category === "all" ? [optional, required] : [shown.filter((plugin) => plugin.tags?.includes(category)), []];
+      if (filter !== "all") {
+        const keep = (plugin) => isPluginEnabled(plugin.name) === (filter === "enabled");
+        [list, below] = [list.filter(keep), below.filter(keep)];
+      }
+      return [list, below];
     };
     const visible = (tabList) => {
       const pinned = listOf("pinned");
@@ -12238,11 +12271,17 @@ ${section.code}
           render();
         } }
       }, tab.label)));
-      const tabList = inTab();
-      search.placeholder = `搜索 ${tabList.length} 个功能…`;
+      const [tabList, tabBelow] = inTab();
+      search.placeholder = `搜索 ${tabList.length + tabBelow.length} 个功能…`;
       const list = visible(tabList);
+      const below = visible(tabBelow);
       grid.replaceChildren(...list.map((plugin) => pluginCard(plugin, render)));
-      if (!list.length) {
+      if (below.length) {
+        if (list.length)
+          grid.append(h("hr", { class: "ldpp-plugins-separator" }));
+        grid.append(...below.map((plugin) => pluginCard(plugin, render)));
+      }
+      if (!list.length && !below.length) {
         grid.append(h("p", { class: "ldpp-muted ldpp-plugins-empty" }, query ? "没有匹配的功能。" : category === "favorites" ? "还没有收藏。点功能卡片上的 ☆ 收藏后会显示在这里。" : category === "recent" ? "最近 7 天没有更新的功能。" : "没有功能。"));
       }
     };
@@ -12263,7 +12302,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.7] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"d0b0d52"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.8] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"ecb2ed7"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -18463,7 +18502,7 @@ div#reply-control .reply-area {
   // ldpp-virtual:~plugins
   ai_default.updatedAt = 1792361044000;
   notifications_default.updatedAt = 1792789819000;
-  settings_default.updatedAt = 1792705837000;
+  settings_default.updatedAt = 1792791037000;
   userStyles_default.updatedAt = 1792361044000;
   topicSummary_default.updatedAt = 1792789819000;
   disableAutoplay_default.updatedAt = 1792361044000;
@@ -18486,7 +18525,7 @@ div#reply-control .reply-area {
   // src/LDPP.ts
   var logger15 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261023.7] v1.0.0";
+  var version = "[20261023.8] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -18500,7 +18539,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger15.info(`LD++ ${"[20261023.7] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger15.info(`LD++ ${"[20261023.8] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 

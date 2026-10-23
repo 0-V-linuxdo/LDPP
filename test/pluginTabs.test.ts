@@ -22,6 +22,7 @@ describe("功能页的分类", () => {
     fake("TabOld", Date.now() - 30 * DAY);
     fake("TabFresh", Date.now() - DAY);
     fake("TabFresher", Date.now() - 60_000);
+    registerPlugin(definePlugin({ name: "TabRequired", displayName: "AAA 必需", description: "", required: true }));
     registerPlugin(Settings as never);
     Settings.start!();
     afterEach(() => {
@@ -45,5 +46,16 @@ describe("功能页的分类", () => {
         openSettings();
         tab("全部").click();
         expect(root().querySelector('.ldpp-plugin-card[data-plugin="TabOld"] .ldpp-plugin-card-new')?.textContent).toBe("新");
+    });
+
+    test("「全部」 lists required plugins last, below a separator, with the switch locked and no pin", () => {
+        openSettings();
+        tab("全部").click();
+        expect(names().at(-1)).toBe("TabRequired");
+        const card = root().querySelector('.ldpp-plugin-card[data-plugin="TabRequired"]')!;
+        expect(card.previousElementSibling?.classList.contains("ldpp-plugins-separator")).toBe(true);
+        expect(card.querySelector<HTMLInputElement>("input[type=checkbox]")!.disabled).toBe(true);
+        expect(card.querySelector(".ldpp-plugin-pin")).toBeNull();
+        expect(card.querySelector(".ldpp-plugin-card-required")).not.toBeNull();
     });
 });

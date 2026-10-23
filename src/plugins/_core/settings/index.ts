@@ -12,7 +12,7 @@ import { isPluginEnabled, plugins, setPluginEnabled } from "@api/PluginManager";
 import { registerProcessor } from "@api/TopicList";
 import { definePluginSettings } from "@api/Settings";
 import { Button, Hint, IconButton, InfoTip, SubTabs, Switch, Tabs } from "@components/controls";
-import { BellIcon, BotIcon, BracesIcon, DatabaseIcon, InfoIcon, PaletteIcon, PinFilledIcon, PinIcon, PluginIcon, RefreshIcon, SettingsIcon, SlidersIcon, StarFilledIcon, StarIcon, TriangleAlertIcon } from "@components/icons";
+import { BellIcon, BotIcon, CircleAlertIcon, BracesIcon, DatabaseIcon, InfoIcon, PaletteIcon, PinFilledIcon, PinIcon, PluginIcon, RefreshIcon, SettingsIcon, SlidersIcon, StarFilledIcon, StarIcon, TriangleAlertIcon } from "@components/icons";
 import { classes } from "@utils/css";
 import { h, mark, trackScrollbar } from "@utils/dom";
 import { gmMenu } from "@utils/gm";
@@ -145,22 +145,24 @@ function pluginCard(plugin: Plugin, rerender: () => void): HTMLElement {
     const starred = listOf("starred").includes(plugin.name);
     const pinned = listOf("pinned").includes(plugin.name);
     const enabled = isPluginEnabled(plugin.name);
-    const crashed = enabled && !plugin.started && !plugin.required;
+    const { required } = plugin;
+    const crashed = enabled && !plugin.started && !required;
     const tags = (plugin.tags ?? []).map(tag => TAG_LABEL[tag]).filter(Boolean);
-    const card = h("article", { class: classes("ldpp-plugin-card", !enabled && "is-off", crashed && "is-crashed"), dataset: { plugin: plugin.name } },
+    const card = h("article", { class: classes("ldpp-plugin-card", !enabled && "is-off", crashed && "is-crashed", required && "is-required"), dataset: { plugin: plugin.name } },
         h("div", { class: "ldpp-plugin-card-body" },
             h("div", { class: "ldpp-plugin-card-head" },
                 h("div", { class: "ldpp-plugin-card-name" },
                     h("span", { class: "ldpp-plugin-card-icon" }, plugin.icon?.(14) ?? PluginIcon(14)),
                     h("span", { class: "ldpp-plugin-card-title", title: plugin.displayName }, plugin.displayName),
+                    required ? h("span", { class: "ldpp-plugin-card-required", title: "LD++ 运行必需，无法关闭", attrs: { "aria-label": "LD++ 运行必需，无法关闭" } }, CircleAlertIcon(14)) : null,
                     crashed ? h("span", { class: "ldpp-plugin-card-crashed", title: "该功能启动失败", attrs: { "aria-label": "该功能启动失败" } }, TriangleAlertIcon(14)) : null,
                     isNewPlugin(plugin.name) ? h("span", { class: "ldpp-plugin-card-new" }, "新") : null,
                 ),
                 h("div", { class: "ldpp-plugin-card-controls" },
                     iconToggle(starred, [StarIcon, StarFilledIcon], ["收藏", "取消收藏"], "ldpp-plugin-star", () => { toggleIn("starred", plugin.name); rerender(); }),
-                    iconToggle(pinned, [PinIcon, PinFilledIcon], ["置顶", "取消置顶"], "ldpp-plugin-pin", () => { toggleIn("pinned", plugin.name); rerender(); }),
+                    required ? null : iconToggle(pinned, [PinIcon, PinFilledIcon], ["置顶", "取消置顶"], "ldpp-plugin-pin", () => { toggleIn("pinned", plugin.name); rerender(); }),
                     visibleSettings(plugin).length ? IconButton(SlidersIcon(), { title: "设置", className: "ldpp-row-btn ldpp-plugin-config", onClick: () => openPluginDialog(plugin) }) : null,
-                    Switch(enabled, value => setPluginEnabled(plugin.name, value), plugin.displayName),
+                    Switch(enabled, value => setPluginEnabled(plugin.name, value), plugin.displayName, required),
                 ),
             ),
             h("p", { class: "ldpp-plugin-card-desc", title: plugin.description }, plugin.description),
@@ -171,8 +173,12 @@ function pluginCard(plugin: Plugin, rerender: () => void): HTMLElement {
 }
 
 function renderFeatures(focus?: string): HTMLElement {
-    const all = Object.values(plugins).filter(plugin => !plugin.hidden && !plugin.required).toSorted((a, b) => a.displayName.localeCompare(b.displayName, "zh"));
-    const tagTabs = (Object.keys(TAG_LABEL) as PluginTag[]).filter(tag => all.some(plugin => plugin.tags?.includes(tag)));
+    // Required plugins (通知, …) can't be switched off; as in Void++, 「全部」 lists them below the others and every
+    // other tab mixes them in.
+    const shown = Object.values(plugins).filter(plugin => !plugin.hidden).toSorted((a, b) => a.displayName.localeCompare(b.displayName, "zh"));
+    const optional = shown.filter(plugin => !plugin.required);
+    const required = shown.filter(plugin => plugin.required);
+    const tagTabs = (Object.keys(TAG_LABEL) as PluginTag[]).filter(tag => shown.some(plugin => plugin.tags?.includes(tag)));
     const tabs: Array<{ id: Category; label: string }> = [{ id: "favorites", label: "收藏" }, { id: "recent", label: "最新" }, { id: "all", label: "全部" }, ...tagTabs.map(tag => ({ id: tag, label: TAG_LABEL[tag] ?? tag }))];
     let category: Category = focus || !listOf("starred").length ? "all" : "favorites";
     let filter: ListFilter = "all";
@@ -184,14 +190,17 @@ function renderFeatures(focus?: string): HTMLElement {
     const grid = trackScrollbar(h("div", { class: "ldpp-plugins-grid" }));
 
     // The tab's list before the search, which the search box counts, as in Void++.
-    const inTab = () => {
+    const inTab = (): [Plugin[], Plugin[]] => {
         const starred = listOf("starred");
-        let list = category === "favorites" ? starred.map(name => all.find(plugin => plugin.name === name)).filter((plugin): plugin is Plugin => Boolean(plugin))
-            : category === "recent" ? all.filter(isRecentlyUpdated).toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0) || a.displayName.localeCompare(b.displayName, "zh"))
-                : category === "all" ? all
-                    : all.filter(plugin => plugin.tags?.includes(category as PluginTag));
-        if (filter !== "all") list = list.filter(plugin => isPluginEnabled(plugin.name) === (filter === "enabled"));
-        return list;
+        let [list, below] = category === "favorites" ? [starred.map(name => shown.find(plugin => plugin.name === name)).filter((plugin): plugin is Plugin => Boolean(plugin)), []]
+            : category === "recent" ? [shown.filter(isRecentlyUpdated).toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0) || a.displayName.localeCompare(b.displayName, "zh")), []]
+                : category === "all" ? [optional, required]
+                    : [shown.filter(plugin => plugin.tags?.includes(category as PluginTag)), []];
+        if (filter !== "all") {
+            const keep = (plugin: Plugin) => isPluginEnabled(plugin.name) === (filter === "enabled");
+            [list, below] = [list.filter(keep), below.filter(keep)];
+        }
+        return [list, below];
     };
     const visible = (tabList: Plugin[]) => {
         const pinned = listOf("pinned");
@@ -212,11 +221,16 @@ function renderFeatures(focus?: string): HTMLElement {
             attrs: { role: "tab", "aria-selected": String(tab.id === category) },
             on: { click: () => { category = tab.id; render(); } },
         }, tab.label)));
-        const tabList = inTab();
-        search.placeholder = `搜索 ${tabList.length} 个功能…`;
+        const [tabList, tabBelow] = inTab();
+        search.placeholder = `搜索 ${tabList.length + tabBelow.length} 个功能…`;
         const list = visible(tabList);
+        const below = visible(tabBelow);
         grid.replaceChildren(...list.map(plugin => pluginCard(plugin, render)));
-        if (!list.length) {
+        if (below.length) {
+            if (list.length) grid.append(h("hr", { class: "ldpp-plugins-separator" }));
+            grid.append(...below.map(plugin => pluginCard(plugin, render)));
+        }
+        if (!list.length && !below.length) {
             grid.append(h("p", { class: "ldpp-muted ldpp-plugins-empty" },
                 query ? "没有匹配的功能。" : category === "favorites" ? "还没有收藏。点功能卡片上的 ☆ 收藏后会显示在这里。"
                     : category === "recent" ? "最近 7 天没有更新的功能。" : "没有功能。"));

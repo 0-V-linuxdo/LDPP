@@ -199,6 +199,21 @@
     white-space: nowrap;
 }
 
+.ldpp-plugins-separator {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin: 0.25rem 0;
+    border: 0;
+    border-top: 1px solid var(--ldpp-line);
+}
+
+.ldpp-plugin-card-required {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--primary-medium, var(--ldpp-muted));
+    line-height: 0;
+}
+
 .ldpp-plugin-card-crashed {
     display: inline-flex;
     flex-shrink: 0;
@@ -206,6 +221,7 @@
     line-height: 0;
 }
 
+.ldpp-plugin-card-required .ldpp-icon,
 .ldpp-plugin-card-crashed .ldpp-icon {
     width: 0.875rem;
     height: 0.875rem;
@@ -277,7 +293,9 @@
 }
 
 .ldpp-plugin-card.is-off .ldpp-plugin-card-name,
-.ldpp-plugin-card.is-off .ldpp-plugin-card-desc {
+.ldpp-plugin-card.is-off .ldpp-plugin-card-desc,
+.ldpp-plugin-card.is-required .ldpp-plugin-card-name,
+.ldpp-plugin-card.is-required .ldpp-plugin-card-desc {
     opacity: 0.6;
 }
 
