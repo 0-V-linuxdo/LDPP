@@ -11,7 +11,7 @@ const isDev = process.argv.includes("--dev");
 const isWatch = process.argv.includes("--watch");
 const pkg = JSON.parse(readFileSync("package.json", "utf-8"));
 
-const VERSION_DATE = "20261023.6";
+const VERSION_DATE = "20261023.7";
 const REPO_URL = "https://github.com/0-V-linuxdo/LDPP";
 const RAW_URL = "https://raw.githubusercontent.com/0-V-linuxdo/LDPP/main/userscript";
 const displayVersion = `[${VERSION_DATE}] v${pkg.version}`;
@@ -57,7 +57,30 @@ function gitHash(): string {
     return result.success ? result.stdout.toString().trim() : "local";
 }
 
-function scan(dir: string, imports: string[], names: string[], counter: { i: number }) {
+// The 「最新」 tab lists plugins whose folder changed in the last week. Commits that touch only chores, docs or tests do
+// not count as an update, nor does the 「[tag] 」 prefix some subjects carry.
+const SKIP_UPDATE_SUBJECT = /^(chore|brand|docs|ci|style|test|build):/i;
+
+function pluginUpdatedAt(folder: string): number {
+    const result = Bun.spawnSync(["git", "log", "--format=%ct %s", "--", relative(process.cwd(), folder) || "."], { stderr: "pipe" });
+    if (!result.success) {
+        console.warn(`git log 失败：${relative(process.cwd(), folder)}`);
+        return 0;
+    }
+    for (const line of result.stdout.toString().trim().split("\n")) {
+        const space = line.indexOf(" ");
+        if (space < 0) continue;
+        let subject = line.slice(space + 1);
+        const bracket = subject.indexOf("] ");
+        if (subject.startsWith("[") && bracket !== -1) subject = subject.slice(bracket + 2);
+        if (SKIP_UPDATE_SUBJECT.test(subject)) continue;
+        const seconds = Number.parseInt(line.slice(0, space), 10);
+        if (Number.isFinite(seconds)) return seconds * 1000;
+    }
+    return 0;
+}
+
+function scan(dir: string, imports: string[], names: string[], mutations: string[], counter: { i: number; stamped: number }) {
     if (!existsSync(dir)) return;
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
         if (!entry.isDirectory() || entry.name.startsWith("_") || entry.name.startsWith(".")) continue;
@@ -67,16 +90,21 @@ function scan(dir: string, imports: string[], names: string[], counter: { i: num
         const name = `p${counter.i++}`;
         imports.push(`import ${name} from ${JSON.stringify(folder)};`);
         names.push(name);
+        const updatedAt = pluginUpdatedAt(folder);
+        if (updatedAt) counter.stamped++;
+        mutations.push(`${name}.updatedAt = ${updatedAt};`);
     }
 }
 
 function pluginModule(): string {
     const imports: string[] = [];
     const names: string[] = [];
-    const counter = { i: 0 };
-    scan(resolve(pluginRoot, "_core"), imports, names, counter);
-    scan(pluginRoot, imports, names, counter);
-    return `${imports.join("\n")}\nexport default { ${names.map(name => `[${name}.name]: ${name}`).join(", ")} };\n`;
+    const mutations: string[] = [];
+    const counter = { i: 0, stamped: 0 };
+    scan(resolve(pluginRoot, "_core"), imports, names, mutations, counter);
+    scan(pluginRoot, imports, names, mutations, counter);
+    if (!isDev && counter.i && !counter.stamped) throw new Error("git log 没有返回任何功能的更新时间，「最新」页会是空的");
+    return `${imports.join("\n")}\n${mutations.join("\n")}\nexport default { ${names.map(name => `[${name}.name]: ${name}`).join(", ")} };\n`;
 }
 
 const virtualPlugins: import("bun").BunPlugin = {

@@ -62,6 +62,8 @@ export const DatabaseIcon = stroke(["ellipse", { cx: "12", cy: "5", rx: "8", ry:
 export const BellIcon = stroke(path("M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"), path("M10.3 21a1.9 1.9 0 0 0 3.4 0"));
 /** Lucide "bot". */
 export const BotIcon = stroke(path("M12 8V4H8"), ["rect", { x: "4", y: "8", width: "16", height: "12", rx: "2" }], path("M2 14h2"), path("M20 14h2"), path("M15 13v2"), path("M9 13v2"));
+/** Lucide "triangle-alert" — a plugin card whose plugin failed to start, as in Void++. */
+export const TriangleAlertIcon = stroke(path("m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"), path("M12 9v4"), path("M12 17h.01"));
 export const InfoIcon = stroke(circle(12, 12, 9), path("M12 11v5"), path("M12 8h.01"));
 export const ListIcon = stroke(path("M8 6h13"), path("M8 12h13"), path("M8 18h13"), path("M3 6h.01"), path("M3 12h.01"), path("M3 18h.01"));
 export const SidebarIcon = stroke(["rect", { x: "3", y: "4", width: "18", height: "16", rx: "2" }], path("M15 4v16"));

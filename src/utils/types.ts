@@ -134,4 +134,6 @@ export interface PluginDef {
 
 export interface Plugin extends PluginDef {
     started: boolean;
+    /** When the plugin's folder last changed (ms), stamped by the build from git; drives the 「最新」 tab. */
+    updatedAt?: number;
 }

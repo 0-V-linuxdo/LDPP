@@ -12,7 +12,7 @@ import { isPluginEnabled, plugins, setPluginEnabled } from "@api/PluginManager";
 import { registerProcessor } from "@api/TopicList";
 import { definePluginSettings } from "@api/Settings";
 import { Button, Hint, IconButton, InfoTip, SubTabs, Switch, Tabs } from "@components/controls";
-import { BellIcon, BotIcon, BracesIcon, DatabaseIcon, InfoIcon, PaletteIcon, PinFilledIcon, PinIcon, PluginIcon, RefreshIcon, SettingsIcon, SlidersIcon, StarFilledIcon, StarIcon } from "@components/icons";
+import { BellIcon, BotIcon, BracesIcon, DatabaseIcon, InfoIcon, PaletteIcon, PinFilledIcon, PinIcon, PluginIcon, RefreshIcon, SettingsIcon, SlidersIcon, StarFilledIcon, StarIcon, TriangleAlertIcon } from "@components/icons";
 import { classes } from "@utils/css";
 import { h, mark, trackScrollbar } from "@utils/dom";
 import { gmMenu } from "@utils/gm";
@@ -35,9 +35,14 @@ export const settings = definePluginSettings({
         type: OptionType.CUSTOM,
         default: [] as string[],
     },
+    /** When each plugin was first seen (ms), for the 「新」 badge. */
+    knownPlugins: {
+        type: OptionType.CUSTOM,
+        default: {} as Record<string, number>,
+    },
 });
 
-type Category = "favorites" | "all" | PluginTag;
+type Category = "favorites" | "recent" | "all" | PluginTag;
 type ListFilter = "all" | "enabled" | "disabled";
 
 const TAG_LABEL: Partial<Record<PluginTag, string>> = { topics: "话题列表", reading: "阅读", ai: "AI", search: "搜索", sync: "同步" };
@@ -46,6 +51,28 @@ const FILTERS: Array<{ value: ListFilter; label: string }> = [
     { value: "enabled", label: "已启用" },
     { value: "disabled", label: "未启用" },
 ];
+
+// Void++'s windows: 「最新」 lists what changed in the last week, the 「新」 badge marks what arrived in the last two days.
+const RECENT_TTL = 7 * 24 * 60 * 60 * 1000;
+const NEW_PLUGIN_TTL = 2 * 24 * 60 * 60 * 1000;
+
+const isRecentlyUpdated = (plugin: Plugin) => plugin.updatedAt != null && plugin.updatedAt > 0 && Date.now() - plugin.updatedAt < RECENT_TTL;
+
+function isNewPlugin(name: string): boolean {
+    const seen = settings.store.knownPlugins?.[name];
+    return seen != null && Date.now() - seen < NEW_PLUGIN_TTL;
+}
+
+function trackNewPlugins() {
+    const known = { ...settings.store.knownPlugins };
+    let changed = false;
+    for (const plugin of Object.values(plugins)) {
+        if (plugin.hidden || plugin.required || plugin.name in known) continue;
+        known[plugin.name] = Date.now();
+        changed = true;
+    }
+    if (changed) settings.store.knownPlugins = known;
+}
 
 const listOf = (key: "starred" | "pinned"): string[] => Array.isArray(settings.store[key]) ? settings.store[key] : [];
 const toggleIn = (key: "starred" | "pinned", name: string) => {
@@ -118,13 +145,16 @@ function pluginCard(plugin: Plugin, rerender: () => void): HTMLElement {
     const starred = listOf("starred").includes(plugin.name);
     const pinned = listOf("pinned").includes(plugin.name);
     const enabled = isPluginEnabled(plugin.name);
+    const crashed = enabled && !plugin.started && !plugin.required;
     const tags = (plugin.tags ?? []).map(tag => TAG_LABEL[tag]).filter(Boolean);
-    const card = h("article", { class: classes("ldpp-plugin-card", !enabled && "is-off"), dataset: { plugin: plugin.name } },
+    const card = h("article", { class: classes("ldpp-plugin-card", !enabled && "is-off", crashed && "is-crashed"), dataset: { plugin: plugin.name } },
         h("div", { class: "ldpp-plugin-card-body" },
             h("div", { class: "ldpp-plugin-card-head" },
                 h("div", { class: "ldpp-plugin-card-name" },
                     h("span", { class: "ldpp-plugin-card-icon" }, plugin.icon?.(14) ?? PluginIcon(14)),
                     h("span", { class: "ldpp-plugin-card-title", title: plugin.displayName }, plugin.displayName),
+                    crashed ? h("span", { class: "ldpp-plugin-card-crashed", title: "该功能启动失败", attrs: { "aria-label": "该功能启动失败" } }, TriangleAlertIcon(14)) : null,
+                    isNewPlugin(plugin.name) ? h("span", { class: "ldpp-plugin-card-new" }, "新") : null,
                 ),
                 h("div", { class: "ldpp-plugin-card-controls" },
                     iconToggle(starred, [StarIcon, StarFilledIcon], ["收藏", "取消收藏"], "ldpp-plugin-star", () => { toggleIn("starred", plugin.name); rerender(); }),
@@ -143,26 +173,33 @@ function pluginCard(plugin: Plugin, rerender: () => void): HTMLElement {
 function renderFeatures(focus?: string): HTMLElement {
     const all = Object.values(plugins).filter(plugin => !plugin.hidden && !plugin.required).toSorted((a, b) => a.displayName.localeCompare(b.displayName, "zh"));
     const tagTabs = (Object.keys(TAG_LABEL) as PluginTag[]).filter(tag => all.some(plugin => plugin.tags?.includes(tag)));
-    const tabs: Array<{ id: Category; label: string }> = [{ id: "favorites", label: "收藏" }, { id: "all", label: "全部" }, ...tagTabs.map(tag => ({ id: tag, label: TAG_LABEL[tag] ?? tag }))];
+    const tabs: Array<{ id: Category; label: string }> = [{ id: "favorites", label: "收藏" }, { id: "recent", label: "最新" }, { id: "all", label: "全部" }, ...tagTabs.map(tag => ({ id: tag, label: TAG_LABEL[tag] ?? tag }))];
     let category: Category = focus || !listOf("starred").length ? "all" : "favorites";
     let filter: ListFilter = "all";
     let query = "";
 
     const tabBar = h("div", { class: "ldpp-plugins-tabs", attrs: { role: "tablist" } });
-    const search = h("input", { type: "search", class: "ldpp-input ldpp-plugins-search", placeholder: `搜索 ${all.length} 个功能…` });
+    const search = h("input", { type: "search", class: "ldpp-input ldpp-plugins-search" });
     const select = h("select", { class: "ldpp-input ldpp-plugins-filter" }, FILTERS.map(option => h("option", { value: option.value }, option.label)));
     const grid = trackScrollbar(h("div", { class: "ldpp-plugins-grid" }));
 
-    const visible = () => {
+    // The tab's list before the search, which the search box counts, as in Void++.
+    const inTab = () => {
         const starred = listOf("starred");
+        let list = category === "favorites" ? starred.map(name => all.find(plugin => plugin.name === name)).filter((plugin): plugin is Plugin => Boolean(plugin))
+            : category === "recent" ? all.filter(isRecentlyUpdated).toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0) || a.displayName.localeCompare(b.displayName, "zh"))
+                : category === "all" ? all
+                    : all.filter(plugin => plugin.tags?.includes(category as PluginTag));
+        if (filter !== "all") list = list.filter(plugin => isPluginEnabled(plugin.name) === (filter === "enabled"));
+        return list;
+    };
+    const visible = (tabList: Plugin[]) => {
         const pinned = listOf("pinned");
         const needle = query.trim().toLowerCase();
-        let list = category === "favorites" ? starred.map(name => all.find(plugin => plugin.name === name)).filter((plugin): plugin is Plugin => Boolean(plugin))
-            : category === "all" ? all
-                : all.filter(plugin => plugin.tags?.includes(category as PluginTag));
-        if (filter !== "all") list = list.filter(plugin => isPluginEnabled(plugin.name) === (filter === "enabled"));
+        let list = tabList;
         if (needle) list = list.filter(plugin => `${plugin.displayName} ${plugin.name} ${plugin.description}`.toLowerCase().includes(needle));
-        if (category !== "favorites" && pinned.length) {
+        // 「最新」 keeps its newest-first order; 「收藏」 keeps the order things were starred.
+        if (category !== "favorites" && category !== "recent" && pinned.length) {
             const rank = (plugin: Plugin) => { const index = pinned.indexOf(plugin.name); return index < 0 ? Infinity : index; };
             list = list.toSorted((a, b) => rank(a) - rank(b));
         }
@@ -175,11 +212,14 @@ function renderFeatures(focus?: string): HTMLElement {
             attrs: { role: "tab", "aria-selected": String(tab.id === category) },
             on: { click: () => { category = tab.id; render(); } },
         }, tab.label)));
-        const list = visible();
+        const tabList = inTab();
+        search.placeholder = `搜索 ${tabList.length} 个功能…`;
+        const list = visible(tabList);
         grid.replaceChildren(...list.map(plugin => pluginCard(plugin, render)));
         if (!list.length) {
             grid.append(h("p", { class: "ldpp-muted ldpp-plugins-empty" },
-                query ? "没有匹配的功能。" : category === "favorites" ? "还没有收藏。点功能卡片上的 ☆ 收藏后会显示在这里。" : "没有功能。"));
+                query ? "没有匹配的功能。" : category === "favorites" ? "还没有收藏。点功能卡片上的 ☆ 收藏后会显示在这里。"
+                    : category === "recent" ? "最近 7 天没有更新的功能。" : "没有功能。"));
         }
     };
     search.addEventListener("input", () => { query = search.value; render(); });
@@ -241,6 +281,7 @@ export default definePlugin({
     settings,
     startAt: StartAt.DOMContentLoaded,
     start() {
+        trackNewPlugins();
         gmMenu("⚙️ LD++ 设置", () => openSettings());
         subscribe("openSettings", ({ tab, plugin }) => openSettings(tab, plugin));
         ensureHeaderButton();

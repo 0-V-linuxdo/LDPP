@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261023.6
+// @version      20261023.7
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261023.6] v1.0.0 — a modification for linux.do
+ * LD++ [20261023.7] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -6685,6 +6685,7 @@ Please report this to https://github.com/markedjs/marked.`;
   var DatabaseIcon = stroke(["ellipse", { cx: "12", cy: "5", rx: "8", ry: "3" }], path("M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"), path("M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"));
   var BellIcon = stroke(path("M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"), path("M10.3 21a1.9 1.9 0 0 0 3.4 0"));
   var BotIcon = stroke(path("M12 8V4H8"), ["rect", { x: "4", y: "8", width: "16", height: "12", rx: "2" }], path("M2 14h2"), path("M20 14h2"), path("M15 13v2"), path("M9 13v2"));
+  var TriangleAlertIcon = stroke(path("m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"), path("M12 9v4"), path("M12 17h.01"));
   var InfoIcon = stroke(circle(12, 12, 9), path("M12 11v5"), path("M12 8h.01"));
   var ListIcon = stroke(path("M8 6h13"), path("M8 12h13"), path("M8 18h13"), path("M3 6h.01"), path("M3 12h.01"), path("M3 18h.01"));
   var SidebarIcon = stroke(["rect", { x: "3", y: "4", width: "18", height: "16", rx: "2" }], path("M15 4v16"));
@@ -7605,6 +7606,33 @@ Please report this to https://github.com/markedjs/marked.`;
     font-weight: 500;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.ldpp-plugin-card-crashed {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--ldpp-danger);
+    line-height: 0;
+}
+
+.ldpp-plugin-card-crashed .ldpp-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+}
+
+.ldpp-plugin-card-new {
+    flex-shrink: 0;
+    padding: 0.0625rem 0.375rem;
+    border-radius: 999px;
+    background: var(--ldpp-accent-soft);
+    color: var(--ldpp-accent);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.ldpp-plugin-card.is-crashed {
+    border-color: color-mix(in srgb, var(--ldpp-danger) 45%, transparent);
 }
 
 .ldpp-plugin-card-controls {
@@ -12063,6 +12091,10 @@ ${section.code}
     pinned: {
       type: 6 /* CUSTOM */,
       default: []
+    },
+    knownPlugins: {
+      type: 6 /* CUSTOM */,
+      default: {}
     }
   });
   var TAG_LABEL = { topics: "话题列表", reading: "阅读", ai: "AI", search: "搜索", sync: "同步" };
@@ -12071,6 +12103,25 @@ ${section.code}
     { value: "enabled", label: "已启用" },
     { value: "disabled", label: "未启用" }
   ];
+  var RECENT_TTL = 7 * 24 * 60 * 60 * 1000;
+  var NEW_PLUGIN_TTL = 2 * 24 * 60 * 60 * 1000;
+  var isRecentlyUpdated = (plugin) => plugin.updatedAt != null && plugin.updatedAt > 0 && Date.now() - plugin.updatedAt < RECENT_TTL;
+  function isNewPlugin(name) {
+    const seen = settings7.store.knownPlugins?.[name];
+    return seen != null && Date.now() - seen < NEW_PLUGIN_TTL;
+  }
+  function trackNewPlugins() {
+    const known = { ...settings7.store.knownPlugins };
+    let changed = false;
+    for (const plugin of Object.values(plugins)) {
+      if (plugin.hidden || plugin.required || plugin.name in known)
+        continue;
+      known[plugin.name] = Date.now();
+      changed = true;
+    }
+    if (changed)
+      settings7.store.knownPlugins = known;
+  }
   var listOf = (key) => Array.isArray(settings7.store[key]) ? settings7.store[key] : [];
   var toggleIn = (key, name) => {
     const list = listOf(key);
@@ -12133,8 +12184,9 @@ ${section.code}
     const starred = listOf("starred").includes(plugin.name);
     const pinned = listOf("pinned").includes(plugin.name);
     const enabled = isPluginEnabled(plugin.name);
+    const crashed = enabled && !plugin.started && !plugin.required;
     const tags = (plugin.tags ?? []).map((tag) => TAG_LABEL[tag]).filter(Boolean);
-    const card = h("article", { class: classes("ldpp-plugin-card", !enabled && "is-off"), dataset: { plugin: plugin.name } }, h("div", { class: "ldpp-plugin-card-body" }, h("div", { class: "ldpp-plugin-card-head" }, h("div", { class: "ldpp-plugin-card-name" }, h("span", { class: "ldpp-plugin-card-icon" }, plugin.icon?.(14) ?? PluginIcon(14)), h("span", { class: "ldpp-plugin-card-title", title: plugin.displayName }, plugin.displayName)), h("div", { class: "ldpp-plugin-card-controls" }, iconToggle(starred, [StarIcon, StarFilledIcon], ["收藏", "取消收藏"], "ldpp-plugin-star", () => {
+    const card = h("article", { class: classes("ldpp-plugin-card", !enabled && "is-off", crashed && "is-crashed"), dataset: { plugin: plugin.name } }, h("div", { class: "ldpp-plugin-card-body" }, h("div", { class: "ldpp-plugin-card-head" }, h("div", { class: "ldpp-plugin-card-name" }, h("span", { class: "ldpp-plugin-card-icon" }, plugin.icon?.(14) ?? PluginIcon(14)), h("span", { class: "ldpp-plugin-card-title", title: plugin.displayName }, plugin.displayName), crashed ? h("span", { class: "ldpp-plugin-card-crashed", title: "该功能启动失败", attrs: { "aria-label": "该功能启动失败" } }, TriangleAlertIcon(14)) : null, isNewPlugin(plugin.name) ? h("span", { class: "ldpp-plugin-card-new" }, "新") : null), h("div", { class: "ldpp-plugin-card-controls" }, iconToggle(starred, [StarIcon, StarFilledIcon], ["收藏", "取消收藏"], "ldpp-plugin-star", () => {
       toggleIn("starred", plugin.name);
       rerender();
     }), iconToggle(pinned, [PinIcon, PinFilledIcon], ["置顶", "取消置顶"], "ldpp-plugin-pin", () => {
@@ -12146,24 +12198,28 @@ ${section.code}
   function renderFeatures(focus) {
     const all = Object.values(plugins).filter((plugin) => !plugin.hidden && !plugin.required).toSorted((a, b) => a.displayName.localeCompare(b.displayName, "zh"));
     const tagTabs = Object.keys(TAG_LABEL).filter((tag) => all.some((plugin) => plugin.tags?.includes(tag)));
-    const tabs = [{ id: "favorites", label: "收藏" }, { id: "all", label: "全部" }, ...tagTabs.map((tag) => ({ id: tag, label: TAG_LABEL[tag] ?? tag }))];
+    const tabs = [{ id: "favorites", label: "收藏" }, { id: "recent", label: "最新" }, { id: "all", label: "全部" }, ...tagTabs.map((tag) => ({ id: tag, label: TAG_LABEL[tag] ?? tag }))];
     let category = focus || !listOf("starred").length ? "all" : "favorites";
     let filter = "all";
     let query = "";
     const tabBar = h("div", { class: "ldpp-plugins-tabs", attrs: { role: "tablist" } });
-    const search = h("input", { type: "search", class: "ldpp-input ldpp-plugins-search", placeholder: `搜索 ${all.length} 个功能…` });
+    const search = h("input", { type: "search", class: "ldpp-input ldpp-plugins-search" });
     const select = h("select", { class: "ldpp-input ldpp-plugins-filter" }, FILTERS2.map((option) => h("option", { value: option.value }, option.label)));
     const grid = trackScrollbar(h("div", { class: "ldpp-plugins-grid" }));
-    const visible = () => {
+    const inTab = () => {
       const starred = listOf("starred");
-      const pinned = listOf("pinned");
-      const needle = query.trim().toLowerCase();
-      let list = category === "favorites" ? starred.map((name) => all.find((plugin) => plugin.name === name)).filter((plugin) => Boolean(plugin)) : category === "all" ? all : all.filter((plugin) => plugin.tags?.includes(category));
+      let list = category === "favorites" ? starred.map((name) => all.find((plugin) => plugin.name === name)).filter((plugin) => Boolean(plugin)) : category === "recent" ? all.filter(isRecentlyUpdated).toSorted((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0) || a.displayName.localeCompare(b.displayName, "zh")) : category === "all" ? all : all.filter((plugin) => plugin.tags?.includes(category));
       if (filter !== "all")
         list = list.filter((plugin) => isPluginEnabled(plugin.name) === (filter === "enabled"));
+      return list;
+    };
+    const visible = (tabList) => {
+      const pinned = listOf("pinned");
+      const needle = query.trim().toLowerCase();
+      let list = tabList;
       if (needle)
         list = list.filter((plugin) => `${plugin.displayName} ${plugin.name} ${plugin.description}`.toLowerCase().includes(needle));
-      if (category !== "favorites" && pinned.length) {
+      if (category !== "favorites" && category !== "recent" && pinned.length) {
         const rank = (plugin) => {
           const index = pinned.indexOf(plugin.name);
           return index < 0 ? Infinity : index;
@@ -12182,10 +12238,12 @@ ${section.code}
           render();
         } }
       }, tab.label)));
-      const list = visible();
+      const tabList = inTab();
+      search.placeholder = `搜索 ${tabList.length} 个功能…`;
+      const list = visible(tabList);
       grid.replaceChildren(...list.map((plugin) => pluginCard(plugin, render)));
       if (!list.length) {
-        grid.append(h("p", { class: "ldpp-muted ldpp-plugins-empty" }, query ? "没有匹配的功能。" : category === "favorites" ? "还没有收藏。点功能卡片上的 ☆ 收藏后会显示在这里。" : "没有功能。"));
+        grid.append(h("p", { class: "ldpp-muted ldpp-plugins-empty" }, query ? "没有匹配的功能。" : category === "favorites" ? "还没有收藏。点功能卡片上的 ☆ 收藏后会显示在这里。" : category === "recent" ? "最近 7 天没有更新的功能。" : "没有功能。"));
       }
     };
     search.addEventListener("input", () => {
@@ -12205,7 +12263,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.6] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"b1709b7"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.7] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"d0b0d52"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -12249,6 +12307,7 @@ ${section.code}
     settings: settings7,
     startAt: "DOMContentLoaded" /* DOMContentLoaded */,
     start() {
+      trackNewPlugins();
       gmMenu("⚙️ LD++ 设置", () => openSettings());
       subscribe("openSettings", ({ tab, plugin }) => openSettings(tab, plugin));
       ensureHeaderButton();
@@ -18402,12 +18461,32 @@ div#reply-control .reply-area {
   });
 
   // ldpp-virtual:~plugins
+  ai_default.updatedAt = 1792361044000;
+  notifications_default.updatedAt = 1792789819000;
+  settings_default.updatedAt = 1792705837000;
+  userStyles_default.updatedAt = 1792361044000;
+  topicSummary_default.updatedAt = 1792789819000;
+  disableAutoplay_default.updatedAt = 1792361044000;
+  listSummary_default.updatedAt = 1792789819000;
+  sidebarWidth_default.updatedAt = 1792361044000;
+  createdTime_default.updatedAt = 1792361044000;
+  topicBlocker_default.updatedAt = 1792361044000;
+  deArrow_default.updatedAt = 1792789819000;
+  posterAvatars_default.updatedAt = 1792361044000;
+  noWatermark_default.updatedAt = 1792361044000;
+  customGreeting_default.updatedAt = 1792361044000;
+  searchFilter_default.updatedAt = 1792361044000;
+  panguSpacing_default.updatedAt = 1792361044000;
+  topicQA_default.updatedAt = 1792789819000;
+  wideLayout_default.updatedAt = 1792361044000;
+  driveSync_default.updatedAt = 1792705837000;
+  keywordSearch_default.updatedAt = 1792361044000;
   var __plugins_default = { [ai_default.name]: ai_default, [notifications_default.name]: notifications_default, [settings_default.name]: settings_default, [userStyles_default.name]: userStyles_default, [topicSummary_default.name]: topicSummary_default, [disableAutoplay_default.name]: disableAutoplay_default, [listSummary_default.name]: listSummary_default, [sidebarWidth_default.name]: sidebarWidth_default, [createdTime_default.name]: createdTime_default, [topicBlocker_default.name]: topicBlocker_default, [deArrow_default.name]: deArrow_default, [posterAvatars_default.name]: posterAvatars_default, [noWatermark_default.name]: noWatermark_default, [customGreeting_default.name]: customGreeting_default, [searchFilter_default.name]: searchFilter_default, [panguSpacing_default.name]: panguSpacing_default, [topicQA_default.name]: topicQA_default, [wideLayout_default.name]: wideLayout_default, [driveSync_default.name]: driveSync_default, [keywordSearch_default.name]: keywordSearch_default };
 
   // src/LDPP.ts
   var logger15 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261023.6] v1.0.0";
+  var version = "[20261023.7] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -18421,7 +18500,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger15.info(`LD++ ${"[20261023.6] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger15.info(`LD++ ${"[20261023.7] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 
