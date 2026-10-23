@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { configureToasts, showToast } from "@api/Notifications";
+import { applyToastStyle, configureToasts, showToast } from "@api/Notifications";
 import { definePluginSettings } from "@api/Settings";
+import { configureTopicFocus } from "@api/TopicList";
 import { BellIcon } from "@components/icons";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 
@@ -14,6 +15,14 @@ export const settings = definePluginSettings({
         type: OptionType.BOOLEAN,
         description: "显示 Toast 通知（错误提示始终显示）。",
         default: true,
+    },
+    style: {
+        type: OptionType.SELECT,
+        description: "通知外观",
+        options: [
+            { label: "LD++（跟随站点配色，左侧圆点标示类型）", value: "ldpp", default: true },
+            { label: "原总结脚本（按类型着色的卡片，白字）", value: "classic" },
+        ],
     },
     infoSeconds: {
         type: OptionType.SLIDER,
@@ -42,6 +51,14 @@ export const settings = definePluginSettings({
         min: 0,
         max: 60,
         default: 0,
+    },
+    clickJump: {
+        type: OptionType.SELECT,
+        description: "点击话题通知后的跳转效果",
+        options: [
+            { label: "LD++（平滑滚动、底色闪烁；找不到时站内打开话题）", value: "ldpp", default: true },
+            { label: "原总结脚本（直接跳到该行、按通知颜色描边 3 秒；找不到时整页打开，在其他话题页则不跳转）", value: "classic" },
+        ],
     },
     clickExpands: {
         type: OptionType.BOOLEAN,
@@ -80,6 +97,15 @@ export default definePlugin({
                 warning: settings.store.warningSeconds,
                 error: settings.store.errorSeconds,
             },
+            style: settings.store.style === "classic" ? "classic" : "ldpp",
         }));
+        configureTopicFocus(() => ({
+            jump: settings.store.clickJump === "classic" ? "classic" : "ldpp",
+            openSidebar: settings.store.clickOpensSidebar,
+        }));
+        applyToastStyle();
+    },
+    onSettingsChange() {
+        applyToastStyle();
     },
 });

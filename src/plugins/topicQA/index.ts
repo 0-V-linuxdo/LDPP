@@ -148,14 +148,14 @@ export async function askTopic(topicId: string, question: string, preset?: QAPre
         messages[1].content = userContent(messages[1].content as string, images);
         const answer = await chatWithRetry(profile, messages, {
             signal: controller.signal,
-            onRetry: notice => showToast(`提问失败，第 ${notice.attempt}/${notice.total} 次重试…`, "warning", { topicId, key: `qa:${topicId}`, onClick: () => focusTopic(topicId, "question") }),
+            onRetry: notice => showToast(`提问失败，第 ${notice.attempt}/${notice.total} 次重试…`, "warning", { topicId, key: `qa:${topicId}`, onClick: type => focusTopic(topicId, "question", type) }),
         });
         addQuestion(topicId, { id: randomId("qa-"), question, answer, presetId: preset?.id ?? "", presetName: preset?.name ?? "", timestamp: new Date().toISOString(), model: profile.model || "未知模型" });
         return true;
     } catch (error) {
         if (isAbortError(error)) return false;
         logger.error("提问失败", error);
-        showToast(`提问失败：${errorMessage(error)}`, "error", { topicId, key: `qa:${topicId}`, onClick: () => focusTopic(topicId, "question") });
+        showToast(`提问失败：${errorMessage(error)}`, "error", { topicId, key: `qa:${topicId}`, onClick: type => focusTopic(topicId, "question", type) });
         throw error;
     } finally {
         running.delete(topicId);

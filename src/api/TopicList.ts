@@ -11,6 +11,7 @@ import { applyEdits, normalizeText, type TextEdit } from "@utils/text";
 import { rememberTopicTitle } from "./Discourse";
 import { dispatch } from "./Events";
 import { checkRoute, currentRoute, routeTo } from "./Navigation";
+import type { ToastType } from "./Notifications";
 
 const logger = new Logger("TopicList", "#94e2d5");
 
@@ -472,21 +473,85 @@ export function flashRow(row: TopicRow) {
 }
 
 /**
- * What clicking a topic toast does: plugins get the first say (list panel, topic sidebar); otherwise the topic's row
- * is scrolled into view, and failing that the topic itself is opened.
+ * How clicking a topic toast moves the page. "ldpp" scrolls smoothly, flashes the row's background and opens a topic
+ * that is not on the page in place; "classic" is the original summary script: jump straight to the row, outline it in
+ * the toast's colour for 3 seconds, load the topic as a new page from a list, and do nothing from another topic.
  */
-export function focusTopic(topicId: string, view: "summary" | "question" | "locate" = "summary") {
-    const event = { topicId, view, handled: false };
+export interface TopicFocusConfig {
+    jump: "ldpp" | "classic";
+    /** On the topic's own page, open the summary sidebar if it is collapsed. */
+    openSidebar: boolean;
+}
+
+let readFocusConfig: () => TopicFocusConfig = () => ({ jump: "ldpp", openSidebar: true });
+
+export function configureTopicFocus(getter: () => TopicFocusConfig) {
+    readFocusConfig = getter;
+}
+
+export function topicFocusConfig(): TopicFocusConfig {
+    return readFocusConfig();
+}
+
+const TONE_COLORS: Record<ToastType, string> = {
+    info: "var(--ldpp-classic-info)",
+    loading: "var(--ldpp-classic-info)",
+    success: "var(--ldpp-classic-success)",
+    warning: "var(--ldpp-classic-warning)",
+    error: "var(--ldpp-classic-error)",
+};
+
+// The original script's highlight, as it set it: inline border and glow, put back after 3 seconds.
+function outlineRow(row: TopicRow, tone: ToastType) {
+    const style = row.el.style;
+    if (row.el.dataset.ldppOutline) return;
+    row.el.dataset.ldppOutline = "1";
+    const saved = { border: style.border, boxShadow: style.boxShadow, transition: style.transition };
+    const color = TONE_COLORS[tone];
+    style.transition = "border 0.3s ease, box-shadow 0.3s ease";
+    style.border = `2px solid ${color}`;
+    style.boxShadow = `0 0 10px ${color}`;
+    setTimeout(() => {
+        style.border = saved.border;
+        style.boxShadow = saved.boxShadow;
+        setTimeout(() => {
+            style.transition = saved.transition;
+            delete row.el.dataset.ldppOutline;
+        }, 300);
+    }, 3000);
+}
+
+/** Scrolls a row into view and marks it, the way the configured jump effect does. */
+export function revealRow(row: TopicRow, tone: ToastType = "info", scroll = true) {
+    const classic = readFocusConfig().jump === "classic";
+    if (scroll) row.el.scrollIntoView({ block: "center", behavior: classic ? "auto" : "smooth" });
+    if (classic) outlineRow(row, tone);
+    else flashRow(row);
+}
+
+/**
+ * What clicking a topic toast does: plugins get the first say (list panel, topic sidebar); otherwise the topic's row
+ * is scrolled into view, and failing that the topic itself is opened. Returns false when nothing happened, which in the
+ * original script's mode keeps the toast on screen as that script did.
+ */
+export function focusTopic(topicId: string, view: "summary" | "question" | "locate" = "summary", tone: ToastType = "info"): boolean {
+    const event = { topicId, view, tone, handled: false };
     dispatch("focusTopic", event);
-    if (event.handled) return;
+    if (event.handled) return true;
     const row = rowsForTopic(topicId).find(item => !item.hidden);
     if (row) {
-        row.el.scrollIntoView({ block: "center", behavior: "smooth" });
-        flashRow(row);
-        return;
+        revealRow(row, tone);
+        return true;
     }
-    if (currentRoute().topicId === topicId) return;
+    const route = currentRoute();
+    if (route.topicId === topicId) return true;
+    if (readFocusConfig().jump === "classic") {
+        if (route.topicId) return false;
+        location.assign(`/t/topic/${topicId}`);
+        return true;
+    }
     routeTo(`/t/topic/${topicId}`);
+    return true;
 }
 
 export function getPanelRow(row: TopicRow, create: boolean): HTMLElement | null {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261023.4
+// @version      20261023.5
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261023.4] v1.0.0 — a modification for linux.do
+ * LD++ [20261023.5] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -1058,6 +1058,7 @@ ${value} EOT;`;
   // src/api/TopicList.ts
   var exports_TopicList = {};
   __export(exports_TopicList, {
+    configureTopicFocus: () => configureTopicFocus,
     displayedTitle: () => displayedTitle,
     flashRow: () => flashRow,
     flushNow: () => flushNow,
@@ -1071,6 +1072,7 @@ ${value} EOT;`;
     registerFilter: () => registerFilter,
     registerProcessor: () => registerProcessor,
     removePanelRow: () => removePanelRow,
+    revealRow: () => revealRow,
     rowsForTopic: () => rowsForTopic,
     schedule: () => schedule,
     setRevealHidden: () => setRevealHidden,
@@ -1078,6 +1080,7 @@ ${value} EOT;`;
     setTitleOverride: () => setTitleOverride,
     setTitlePreview: () => setTitlePreview,
     startTopicList: () => startTopicList,
+    topicFocusConfig: () => topicFocusConfig,
     unregisterDecorator: () => unregisterDecorator,
     unregisterFilter: () => unregisterFilter,
     unregisterProcessor: () => unregisterProcessor,
@@ -1314,6 +1317,11 @@ ${value} EOT;`;
     --ldpp-press: linear-gradient(rgb(0 0 0 / 12%), rgb(0 0 0 / 12%));
     --ldpp-shadow: 0 12px 32px rgb(0 0 0 / 22%);
     --ldpp-font-sm: var(--font-down-1, 0.875em);
+    /* The original summary script's toast colours, for its toast look and click highlight. */
+    --ldpp-classic-info: rgb(74 144 226 / 90%);
+    --ldpp-classic-success: rgb(46 204 113 / 90%);
+    --ldpp-classic-warning: rgb(241 196 15 / 90%);
+    --ldpp-classic-error: rgb(231 76 60 / 90%);
 }
 
 .ldpp-icon {
@@ -2383,6 +2391,79 @@ tr.topic-list-item.ldpp-flash > td {
     right: 0.35rem;
     width: 1.5rem;
     height: 1.5rem;
+}
+
+/* The original summary script's look: a solid card in the type's colour, white text, a divider above the topic. */
+.ldpp-toasts-classic {
+    right: 20px;
+    bottom: 20px;
+    gap: 10px;
+    width: min(360px, calc(100vw - 32px));
+}
+
+.ldpp-toasts-classic .ldpp-toast {
+    padding: 12px 30px 12px 15px;
+    border: none;
+    border-radius: 8px;
+    background: var(--ldpp-classic-info);
+    color: #fff;
+    box-shadow: none;
+    transform: translateY(8px);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.ldpp-toasts-classic .ldpp-toast.is-shown {
+    transform: none;
+}
+
+.ldpp-toasts-classic .ldpp-toast-success {
+    background: var(--ldpp-classic-success);
+}
+
+.ldpp-toasts-classic .ldpp-toast-warning {
+    background: var(--ldpp-classic-warning);
+}
+
+.ldpp-toasts-classic .ldpp-toast-error {
+    background: var(--ldpp-classic-error);
+}
+
+.ldpp-toasts-classic .ldpp-toast-dot {
+    display: none;
+}
+
+.ldpp-toasts-classic .ldpp-toast-main {
+    flex: 1;
+    gap: 5px;
+    line-height: inherit;
+}
+
+.ldpp-toasts-classic .ldpp-toast-text {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.ldpp-toasts-classic .ldpp-toast-topic {
+    padding-top: 5px;
+    border-top: 1px solid rgb(255 255 255 / 30%);
+    color: inherit;
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+.ldpp-toasts-classic .ldpp-toast-close {
+    top: 5px;
+    right: 5px;
+    border-radius: 50%;
+    --ldpp-btn-tone: #fff;
+    opacity: 0.7;
+}
+
+.ldpp-toasts-classic .ldpp-toast-close:hover {
+    background: rgb(255 255 255 / 20%);
+    opacity: 1;
 }
 
 .ldpp-spinner {
@@ -6223,20 +6304,69 @@ Please report this to https://github.com/markedjs/marked.`;
     row.el.classList.add("ldpp-flash");
     setTimeout(() => row.el.classList.remove("ldpp-flash"), 1600);
   }
-  function focusTopic(topicId, view = "summary") {
-    const event = { topicId, view, handled: false };
+  var readFocusConfig = () => ({ jump: "ldpp", openSidebar: true });
+  function configureTopicFocus(getter) {
+    readFocusConfig = getter;
+  }
+  function topicFocusConfig() {
+    return readFocusConfig();
+  }
+  var TONE_COLORS = {
+    info: "var(--ldpp-classic-info)",
+    loading: "var(--ldpp-classic-info)",
+    success: "var(--ldpp-classic-success)",
+    warning: "var(--ldpp-classic-warning)",
+    error: "var(--ldpp-classic-error)"
+  };
+  function outlineRow(row, tone) {
+    const style = row.el.style;
+    if (row.el.dataset.ldppOutline)
+      return;
+    row.el.dataset.ldppOutline = "1";
+    const saved = { border: style.border, boxShadow: style.boxShadow, transition: style.transition };
+    const color = TONE_COLORS[tone];
+    style.transition = "border 0.3s ease, box-shadow 0.3s ease";
+    style.border = `2px solid ${color}`;
+    style.boxShadow = `0 0 10px ${color}`;
+    setTimeout(() => {
+      style.border = saved.border;
+      style.boxShadow = saved.boxShadow;
+      setTimeout(() => {
+        style.transition = saved.transition;
+        delete row.el.dataset.ldppOutline;
+      }, 300);
+    }, 3000);
+  }
+  function revealRow(row, tone = "info", scroll = true) {
+    const classic = readFocusConfig().jump === "classic";
+    if (scroll)
+      row.el.scrollIntoView({ block: "center", behavior: classic ? "auto" : "smooth" });
+    if (classic)
+      outlineRow(row, tone);
+    else
+      flashRow(row);
+  }
+  function focusTopic(topicId, view = "summary", tone = "info") {
+    const event = { topicId, view, tone, handled: false };
     dispatch("focusTopic", event);
     if (event.handled)
-      return;
+      return true;
     const row = rowsForTopic(topicId).find((item) => !item.hidden);
     if (row) {
-      row.el.scrollIntoView({ block: "center", behavior: "smooth" });
-      flashRow(row);
-      return;
+      revealRow(row, tone);
+      return true;
     }
-    if (currentRoute().topicId === topicId)
-      return;
+    const route = currentRoute();
+    if (route.topicId === topicId)
+      return true;
+    if (readFocusConfig().jump === "classic") {
+      if (route.topicId)
+        return false;
+      location.assign(`/t/topic/${topicId}`);
+      return true;
+    }
     routeTo(`/t/topic/${topicId}`);
+    return true;
   }
   function getPanelRow(row, create) {
     const next = row.el.nextElementSibling;
@@ -7028,7 +7158,7 @@ Please report this to https://github.com/markedjs/marked.`;
   });
 
   // src/api/Notifications.ts
-  var DEFAULT_CONFIG = { enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 } };
+  var DEFAULT_CONFIG = { enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 }, style: "ldpp" };
   var TITLE_WIDTH = 34;
   var readConfig = () => DEFAULT_CONFIG;
   var byKey = new Map;
@@ -7041,7 +7171,11 @@ Please report this to https://github.com/markedjs/marked.`;
       return found;
     const root = mark(h("div", { class: "ldpp-toasts", attrs: { "aria-live": "polite" } }), "toasts");
     document.body.appendChild(root);
+    applyToastStyle();
     return root;
+  }
+  function applyToastStyle() {
+    document.querySelector(".ldpp-toasts")?.classList.toggle("ldpp-toasts-classic", readConfig().style === "classic");
   }
   function durationFor(type, explicit) {
     if (explicit != null)
@@ -7067,6 +7201,7 @@ Please report this to https://github.com/markedjs/marked.`;
     const el = h("div", { class: `ldpp-toast ldpp-toast-${type}`, attrs: { role: type === "error" ? "alert" : "status" } }, h("span", { class: "ldpp-toast-dot" }), h("div", { class: "ldpp-toast-main" }, text, topicLine));
     let timer = null;
     let closed = false;
+    let currentType = type;
     const arm = (ms) => {
       if (timer)
         clearTimeout(timer);
@@ -7080,6 +7215,7 @@ Please report this to https://github.com/markedjs/marked.`;
         if (closed)
           return;
         text.textContent = next;
+        currentType = nextType;
         el.className = `ldpp-toast ldpp-toast-${nextType} is-shown`;
         if (options.onClick)
           el.classList.add("is-clickable");
@@ -7111,8 +7247,8 @@ Please report this to https://github.com/markedjs/marked.`;
       el.addEventListener("click", () => {
         if (closed)
           return;
-        options.onClick?.();
-        handle.close();
+        if (options.onClick?.(currentType) !== false)
+          handle.close();
       });
     }
     if (options.topicId && topicLine) {
@@ -7141,6 +7277,14 @@ Please report this to https://github.com/markedjs/marked.`;
       description: "显示 Toast 通知（错误提示始终显示）。",
       default: true
     },
+    style: {
+      type: 3 /* SELECT */,
+      description: "通知外观",
+      options: [
+        { label: "LD++（跟随站点配色，左侧圆点标示类型）", value: "ldpp", default: true },
+        { label: "原总结脚本（按类型着色的卡片，白字）", value: "classic" }
+      ]
+    },
     infoSeconds: {
       type: 4 /* SLIDER */,
       description: "「信息」通知自动关闭秒数，0 表示不自动关闭。",
@@ -7168,6 +7312,14 @@ Please report this to https://github.com/markedjs/marked.`;
       min: 0,
       max: 60,
       default: 0
+    },
+    clickJump: {
+      type: 3 /* SELECT */,
+      description: "点击话题通知后的跳转效果",
+      options: [
+        { label: "LD++（平滑滚动、底色闪烁；找不到时站内打开话题）", value: "ldpp", default: true },
+        { label: "原总结脚本（直接跳到该行、按通知颜色描边 3 秒；找不到时整页打开，在其他话题页则不跳转）", value: "classic" }
+      ]
     },
     clickExpands: {
       type: 2 /* BOOLEAN */,
@@ -7203,8 +7355,17 @@ Please report this to https://github.com/markedjs/marked.`;
           success: settings2.store.successSeconds,
           warning: settings2.store.warningSeconds,
           error: settings2.store.errorSeconds
-        }
+        },
+        style: settings2.store.style === "classic" ? "classic" : "ldpp"
       }));
+      configureTopicFocus(() => ({
+        jump: settings2.store.clickJump === "classic" ? "classic" : "ldpp",
+        openSidebar: settings2.store.clickOpensSidebar
+      }));
+      applyToastStyle();
+    },
+    onSettingsChange() {
+      applyToastStyle();
     }
   });
 
@@ -12008,7 +12169,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.4] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"5e51362"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.5] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"70de795"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -12612,7 +12773,7 @@ ${content.text}`, images) }
         topicId,
         key: `summary:${topicId}`,
         onDismiss: () => controller.abort(),
-        onClick: () => focusTopic(topicId)
+        onClick: (type) => focusTopic(topicId, "summary", type)
       })
     };
     operations.set(topicId, op);
@@ -13376,7 +13537,7 @@ ${content.text}`
       messages[1].content = userContent(messages[1].content, images);
       const answer = await chatWithRetry(profile, messages, {
         signal: controller.signal,
-        onRetry: (notice) => showToast(`提问失败，第 ${notice.attempt}/${notice.total} 次重试…`, "warning", { topicId, key: `qa:${topicId}`, onClick: () => focusTopic(topicId, "question") })
+        onRetry: (notice) => showToast(`提问失败，第 ${notice.attempt}/${notice.total} 次重试…`, "warning", { topicId, key: `qa:${topicId}`, onClick: (type) => focusTopic(topicId, "question", type) })
       });
       addQuestion(topicId, { id: randomId("qa-"), question, answer, presetId: preset?.id ?? "", presetName: preset?.name ?? "", timestamp: new Date().toISOString(), model: profile.model || "未知模型" });
       return true;
@@ -13384,7 +13545,7 @@ ${content.text}`
       if (isAbortError(error))
         return false;
       logger11.error("提问失败", error);
-      showToast(`提问失败：${errorMessage(error)}`, "error", { topicId, key: `qa:${topicId}`, onClick: () => focusTopic(topicId, "question") });
+      showToast(`提问失败：${errorMessage(error)}`, "error", { topicId, key: `qa:${topicId}`, onClick: (type) => focusTopic(topicId, "question", type) });
       throw error;
     } finally {
       running.delete(topicId);
@@ -13922,7 +14083,8 @@ ${content.text}`
           return;
         event.handled = true;
         syncSidebar(sidebarOptions(), event.view);
-        setSidebarOpen(true);
+        if (topicFocusConfig().openSidebar)
+          setSidebarOpen(true);
       },
       pluginToggle({ name }) {
         if (name === "TopicQA" && sidebarTopic()) {
@@ -14330,9 +14492,16 @@ ${content.text}`
         if (!row)
           return;
         event.handled = true;
-        row.el.scrollIntoView({ block: "center", behavior: "smooth" });
-        flashRow(row);
-        openPanel2(row, event.view);
+        revealRow(row, event.tone);
+        if (topicFocusConfig().jump !== "classic") {
+          openPanel2(row, event.view);
+          return;
+        }
+        const { view } = event;
+        requestAnimationFrame(() => setTimeout(() => {
+          if (!open2.has(row.id) && row.el.isConnected)
+            openPanel2(row, view);
+        }, 0));
       },
       pluginToggle({ name }) {
         if (name !== "TopicQA")
@@ -15213,23 +15382,21 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     showToast(message, "error", {
       topicId: batch.length === 1 ? batch[0].topicId : undefined,
       key,
-      onClick: () => {
-        locateBatch(batchFailures.get(key) ?? []);
-        batchFailures.delete(key);
+      onClick: (type) => {
+        const kept = locateBatch(batchFailures.get(key) ?? [], type);
+        if (kept !== false)
+          batchFailures.delete(key);
+        return kept;
       },
       onDismiss: () => batchFailures.delete(key)
     });
   }
-  function locateBatch(batch) {
+  function locateBatch(batch, tone) {
     const rows = batch.flatMap((item) => rowsForTopic(item.topicId).filter((row) => !row.hidden));
-    if (!rows.length) {
-      if (batch.length)
-        focusTopic(batch[0].topicId, "locate");
-      return;
-    }
-    rows[0].el.scrollIntoView({ block: "center", behavior: "smooth" });
-    for (const row of rows)
-      flashRow(row);
+    if (!rows.length)
+      return batch.length ? focusTopic(batch[0].topicId, "locate", tone) : true;
+    rows.forEach((row, index) => revealRow(row, tone, index === 0));
+    return true;
   }
   function scheduleDrain() {
     if (drainTimer)
@@ -15384,7 +15551,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       claimed = await claim("rewrite", topicId);
       if (!claimed) {
         if (!automatic)
-          showToast("另一个标签页正在改写这个话题，结果会自动同步过来", "info", { topicId, key: `dearrow:${topicId}`, onClick: () => focusTopic(topicId, "locate") });
+          showToast("另一个标签页正在改写这个话题，结果会自动同步过来", "info", { topicId, key: `dearrow:${topicId}`, onClick: (type) => focusTopic(topicId, "locate", type) });
         return;
       }
       judgeQueue.delete(topicId);
@@ -15421,7 +15588,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       logger12.warn(`改写话题 ${topicId} 失败`, error);
       errors2.set(topicId, { kind: "rewrite", message: errorMessage(error), title });
       if (!automatic)
-        showToast(`DeArrow 改写失败：${errorMessage(error)}`, "error", { topicId, key: `dearrow:${topicId}`, onClick: () => focusTopic(topicId, "locate") });
+        showToast(`DeArrow 改写失败：${errorMessage(error)}`, "error", { topicId, key: `dearrow:${topicId}`, onClick: (type) => focusTopic(topicId, "locate", type) });
     } finally {
       if (claimed) {
         DeArrowStates.flush();
@@ -18204,7 +18371,7 @@ div#reply-control .reply-area {
   // src/LDPP.ts
   var logger15 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261023.4] v1.0.0";
+  var version = "[20261023.5] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -18218,7 +18385,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger15.info(`LD++ ${"[20261023.4] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger15.info(`LD++ ${"[20261023.5] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 

@@ -6,7 +6,7 @@
 
 import { afterEach, describe, expect, test } from "bun:test";
 
-import { showToast } from "../src/api/Notifications";
+import { configureToasts, showToast, type ToastType } from "../src/api/Notifications";
 
 describe("showToast", () => {
     afterEach(() => { document.body.innerHTML = ""; });
@@ -14,7 +14,7 @@ describe("showToast", () => {
     test("clicking a clickable toast runs onClick and closes it, without counting as a dismiss", () => {
         let clicks = 0;
         let dismissed = 0;
-        const handle = showToast("正在生成总结…", "loading", { key: "summary:1", onClick: () => clicks++, onDismiss: () => dismissed++ });
+        const handle = showToast("正在生成总结…", "loading", { key: "summary:1", onClick: () => { clicks++; }, onDismiss: () => dismissed++ });
         document.querySelector<HTMLElement>(".ldpp-toast")!.click();
         expect(clicks).toBe(1);
         expect(dismissed).toBe(0);
@@ -27,10 +27,26 @@ describe("showToast", () => {
     test("the close button dismisses without running onClick", () => {
         let clicks = 0;
         let dismissed = 0;
-        const handle = showToast("失败", "error", { onClick: () => clicks++, onDismiss: () => dismissed++ });
+        const handle = showToast("失败", "error", { onClick: () => { clicks++; }, onDismiss: () => dismissed++ });
         document.querySelector<HTMLElement>(".ldpp-toast-close")!.click();
         expect(clicks).toBe(0);
         expect(dismissed).toBe(1);
         expect(handle.closed).toBe(true);
+    });
+
+    test("onClick gets the current type, and returning false keeps the toast open", () => {
+        const seen: ToastType[] = [];
+        const handle = showToast("正在生成总结…", "loading", { onClick: type => { seen.push(type); return false; } });
+        handle.update("总结失败", "error");
+        document.querySelector<HTMLElement>(".ldpp-toast")!.click();
+        expect(seen).toEqual(["error"]);
+        expect(handle.closed).toBe(false);
+    });
+
+    test("the original script's look is a class on the container", () => {
+        configureToasts(() => ({ enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 }, style: "classic" }));
+        showToast("x", "info");
+        expect(document.querySelector(".ldpp-toasts")?.classList.contains("ldpp-toasts-classic")).toBe(true);
+        configureToasts(() => ({ enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 }, style: "ldpp" }));
     });
 });

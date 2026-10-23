@@ -8,6 +8,7 @@ import { Logger } from "@utils/Logger";
 import { mapGetOrCreate } from "@utils/misc";
 
 import type { RouteInfo } from "./Navigation";
+import type { ToastType } from "./Notifications";
 
 export type DataStoreName = "summaries" | "questions" | "summarized" | "dearrow";
 export type DataChangeSource = "local" | "remote" | "drive" | "import";
@@ -19,7 +20,8 @@ export interface LDPPEventMap {
     openSettings: { tab?: string; plugin?: string };
     summaryUpdated: { topicId: string };
     /** "locate" only brings the topic into view; "summary" / "question" also open that panel. */
-    focusTopic: { topicId: string; view: "summary" | "question" | "locate"; handled: boolean };
+    /** tone is the clicked toast's type, which the original script's highlight is coloured by. */
+    focusTopic: { topicId: string; view: "summary" | "question" | "locate"; tone: ToastType; handled: boolean };
 }
 
 export type LDPPEvent = keyof LDPPEventMap;

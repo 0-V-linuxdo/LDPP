@@ -10,7 +10,7 @@ import { hasSummary, Summarized } from "@api/DataStore";
 import { subscribe } from "@api/Events";
 import { isPluginEnabled } from "@api/PluginManager";
 import { definePluginSettings } from "@api/Settings";
-import { flashRow, getPanelRow, registerDecorator, registerProcessor, removePanelRow, rowsForTopic, schedule, type TopicRow, unregisterDecorator, unregisterProcessor } from "@api/TopicList";
+import { getPanelRow, registerDecorator, registerProcessor, removePanelRow, revealRow, rowsForTopic, schedule, topicFocusConfig, type TopicRow, unregisterDecorator, unregisterProcessor } from "@api/TopicList";
 import { IconButton } from "@components/controls";
 import { CloseIcon, CloudIcon, ListIcon, QuestionIcon, SparkIcon } from "@components/icons";
 import { classes } from "@utils/css";
@@ -229,9 +229,16 @@ export default definePlugin({
             const row = rowsForTopic(event.topicId).find(item => !item.hidden);
             if (!row) return;
             event.handled = true;
-            row.el.scrollIntoView({ block: "center", behavior: "smooth" });
-            flashRow(row);
-            openPanel(row, event.view);
+            revealRow(row, event.tone);
+            if (topicFocusConfig().jump !== "classic") {
+                openPanel(row, event.view);
+                return;
+            }
+            // The original script expanded the row a frame later, after the jump, and left an open row as it was.
+            const { view } = event;
+            requestAnimationFrame(() => setTimeout(() => {
+                if (!open.has(row.id) && row.el.isConnected) openPanel(row, view);
+            }, 0));
         },
         pluginToggle({ name }) {
             if (name !== "TopicQA") return;

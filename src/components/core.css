@@ -21,6 +21,11 @@
     --ldpp-press: linear-gradient(rgb(0 0 0 / 12%), rgb(0 0 0 / 12%));
     --ldpp-shadow: 0 12px 32px rgb(0 0 0 / 22%);
     --ldpp-font-sm: var(--font-down-1, 0.875em);
+    /* The original summary script's toast colours, for its toast look and click highlight. */
+    --ldpp-classic-info: rgb(74 144 226 / 90%);
+    --ldpp-classic-success: rgb(46 204 113 / 90%);
+    --ldpp-classic-warning: rgb(241 196 15 / 90%);
+    --ldpp-classic-error: rgb(231 76 60 / 90%);
 }
 
 .ldpp-icon {
@@ -1090,6 +1095,79 @@ tr.topic-list-item.ldpp-flash > td {
     right: 0.35rem;
     width: 1.5rem;
     height: 1.5rem;
+}
+
+/* The original summary script's look: a solid card in the type's colour, white text, a divider above the topic. */
+.ldpp-toasts-classic {
+    right: 20px;
+    bottom: 20px;
+    gap: 10px;
+    width: min(360px, calc(100vw - 32px));
+}
+
+.ldpp-toasts-classic .ldpp-toast {
+    padding: 12px 30px 12px 15px;
+    border: none;
+    border-radius: 8px;
+    background: var(--ldpp-classic-info);
+    color: #fff;
+    box-shadow: none;
+    transform: translateY(8px);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.ldpp-toasts-classic .ldpp-toast.is-shown {
+    transform: none;
+}
+
+.ldpp-toasts-classic .ldpp-toast-success {
+    background: var(--ldpp-classic-success);
+}
+
+.ldpp-toasts-classic .ldpp-toast-warning {
+    background: var(--ldpp-classic-warning);
+}
+
+.ldpp-toasts-classic .ldpp-toast-error {
+    background: var(--ldpp-classic-error);
+}
+
+.ldpp-toasts-classic .ldpp-toast-dot {
+    display: none;
+}
+
+.ldpp-toasts-classic .ldpp-toast-main {
+    flex: 1;
+    gap: 5px;
+    line-height: inherit;
+}
+
+.ldpp-toasts-classic .ldpp-toast-text {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.ldpp-toasts-classic .ldpp-toast-topic {
+    padding-top: 5px;
+    border-top: 1px solid rgb(255 255 255 / 30%);
+    color: inherit;
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+.ldpp-toasts-classic .ldpp-toast-close {
+    top: 5px;
+    right: 5px;
+    border-radius: 50%;
+    --ldpp-btn-tone: #fff;
+    opacity: 0.7;
+}
+
+.ldpp-toasts-classic .ldpp-toast-close:hover {
+    background: rgb(255 255 255 / 20%);
+    opacity: 1;
 }
 
 .ldpp-spinner {

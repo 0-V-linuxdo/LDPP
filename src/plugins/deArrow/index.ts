@@ -10,12 +10,12 @@ import { AIError, chatWithRetry, getProfile, requireProfile, userContent } from 
 import { DeArrowStates } from "@api/DataStore";
 import { subscribe } from "@api/Events";
 import { prepareImages } from "@api/Images";
-import { closeToast, showToast } from "@api/Notifications";
+import { closeToast, showToast, type ToastType } from "@api/Notifications";
 import { isPluginEnabled } from "@api/PluginManager";
 import type { DeArrowState } from "@api/records";
 import { definePluginSettings } from "@api/Settings";
 import { buildTopicContent } from "@api/TopicContent";
-import { flashRow, focusTopic, registerDecorator, registerProcessor, rowsForTopic, schedule, setTitleMark, setTitleOverride, setTitlePreview, type TopicRow, unregisterDecorator, unregisterProcessor } from "@api/TopicList";
+import { focusTopic, registerDecorator, registerProcessor, revealRow, rowsForTopic, schedule, setTitleMark, setTitleOverride, setTitlePreview, type TopicRow, unregisterDecorator, unregisterProcessor } from "@api/TopicList";
 import { DeArrowIcon } from "@components/icons";
 import { classes } from "@utils/css";
 import { h } from "@utils/dom";
@@ -222,22 +222,20 @@ function batchToast(key: string, what: string, batch: JudgeInput[], error: unkno
     showToast(message, "error", {
         topicId: batch.length === 1 ? batch[0].topicId : undefined,
         key,
-        onClick: () => {
-            locateBatch(batchFailures.get(key) ?? []);
-            batchFailures.delete(key);
+        onClick: type => {
+            const kept = locateBatch(batchFailures.get(key) ?? [], type);
+            if (kept !== false) batchFailures.delete(key);
+            return kept;
         },
         onDismiss: () => batchFailures.delete(key),
     });
 }
 
-function locateBatch(batch: JudgeInput[]) {
+function locateBatch(batch: JudgeInput[], tone: ToastType): boolean {
     const rows = batch.flatMap(item => rowsForTopic(item.topicId).filter(row => !row.hidden));
-    if (!rows.length) {
-        if (batch.length) focusTopic(batch[0].topicId, "locate");
-        return;
-    }
-    rows[0].el.scrollIntoView({ block: "center", behavior: "smooth" });
-    for (const row of rows) flashRow(row);
+    if (!rows.length) return batch.length ? focusTopic(batch[0].topicId, "locate", tone) : true;
+    rows.forEach((row, index) => revealRow(row, tone, index === 0));
+    return true;
 }
 
 function scheduleDrain() {
@@ -382,7 +380,7 @@ async function rewrite(input: JudgeInput, automatic: boolean) {
     try {
         claimed = await claim("rewrite", topicId);
         if (!claimed) {
-            if (!automatic) showToast("另一个标签页正在改写这个话题，结果会自动同步过来", "info", { topicId, key: `dearrow:${topicId}`, onClick: () => focusTopic(topicId, "locate") });
+            if (!automatic) showToast("另一个标签页正在改写这个话题，结果会自动同步过来", "info", { topicId, key: `dearrow:${topicId}`, onClick: type => focusTopic(topicId, "locate", type) });
             return;
         }
         // A judge request for this topic may already be on its way from the list; wait for it rather than send another.
@@ -414,7 +412,7 @@ async function rewrite(input: JudgeInput, automatic: boolean) {
     } catch (error) {
         logger.warn(`改写话题 ${topicId} 失败`, error);
         errors.set(topicId, { kind: "rewrite", message: errorMessage(error), title });
-        if (!automatic) showToast(`DeArrow 改写失败：${errorMessage(error)}`, "error", { topicId, key: `dearrow:${topicId}`, onClick: () => focusTopic(topicId, "locate") });
+        if (!automatic) showToast(`DeArrow 改写失败：${errorMessage(error)}`, "error", { topicId, key: `dearrow:${topicId}`, onClick: type => focusTopic(topicId, "locate", type) });
     } finally {
         if (claimed) {
             DeArrowStates.flush();

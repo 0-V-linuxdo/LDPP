@@ -14,16 +14,21 @@ import { resolveTopicTitle } from "./Discourse";
 export type ToastType = "info" | "success" | "warning" | "error" | "loading";
 type TimedType = Exclude<ToastType, "loading">;
 
+/** "classic" is the original summary script's look: solid cards coloured by type, white text. */
+export type ToastStyle = "ldpp" | "classic";
+
 export interface ToastConfig {
     enabled: boolean;
     durations: Record<TimedType, number>;
+    style: ToastStyle;
 }
 
 export interface ToastOptions {
     topicId?: string;
     key?: string;
     duration?: number;
-    onClick?(): void;
+    /** Gets the toast's current type. Returning false keeps the toast open; otherwise it closes after the click. */
+    onClick?(type: ToastType): boolean | void;
     onDismiss?(): void;
 }
 
@@ -33,7 +38,7 @@ export interface ToastHandle {
     close(): void;
 }
 
-const DEFAULT_CONFIG: ToastConfig = { enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 } };
+const DEFAULT_CONFIG: ToastConfig = { enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 }, style: "ldpp" };
 const TITLE_WIDTH = 34;
 
 let readConfig: () => ToastConfig = () => DEFAULT_CONFIG;
@@ -48,7 +53,13 @@ function container(): HTMLElement {
     if (found) return found;
     const root = mark(h("div", { class: "ldpp-toasts", attrs: { "aria-live": "polite" } }), "toasts");
     document.body.appendChild(root);
+    applyToastStyle();
     return root;
+}
+
+/** Re-applies the configured look to toasts already on screen. */
+export function applyToastStyle() {
+    document.querySelector(".ldpp-toasts")?.classList.toggle("ldpp-toasts-classic", readConfig().style === "classic");
 }
 
 function durationFor(type: ToastType, explicit?: number): number {
@@ -78,6 +89,7 @@ export function showToast(message: string, type: ToastType = "info", options: To
     );
     let timer: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
+    let currentType = type;
     const arm = (ms: number) => {
         if (timer) clearTimeout(timer);
         timer = ms > 0 ? setTimeout(() => handle.close(), ms) : null;
@@ -87,6 +99,7 @@ export function showToast(message: string, type: ToastType = "info", options: To
         update(next, nextType = type, duration) {
             if (closed) return;
             text.textContent = next;
+            currentType = nextType;
             el.className = `ldpp-toast ldpp-toast-${nextType} is-shown`;
             if (options.onClick) el.classList.add("is-clickable");
             arm(durationFor(nextType, duration));
@@ -115,8 +128,7 @@ export function showToast(message: string, type: ToastType = "info", options: To
         // counts as dismissing it, so onDismiss (which cancels a running summary) is not called here.
         el.addEventListener("click", () => {
             if (closed) return;
-            options.onClick?.();
-            handle.close();
+            if (options.onClick?.(currentType) !== false) handle.close();
         });
     }
     if (options.topicId && topicLine) {

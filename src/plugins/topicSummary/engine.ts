@@ -129,7 +129,7 @@ export async function summarizeTopic(topicId: string, { mode = "manual", force =
             topicId,
             key: `summary:${topicId}`,
             onDismiss: () => controller.abort(),
-            onClick: () => focusTopic(topicId),
+            onClick: type => focusTopic(topicId, "summary", type),
         }),
     };
     operations.set(topicId, op);

@@ -9,6 +9,7 @@ import "./styles.css";
 import { hasSummary } from "@api/DataStore";
 import { currentRoute } from "@api/Navigation";
 import { definePluginSettings } from "@api/Settings";
+import { topicFocusConfig } from "@api/TopicList";
 import { SparkIcon } from "@components/icons";
 import definePlugin, { OptionType } from "@utils/types";
 
@@ -155,7 +156,7 @@ export default definePlugin({
             if (event.handled || event.view === "locate" || sidebarTopic() !== event.topicId) return;
             event.handled = true;
             syncSidebar(sidebarOptions(), event.view);
-            setSidebarOpen(true);
+            if (topicFocusConfig().openSidebar) setSidebarOpen(true);
         },
         pluginToggle({ name }) {
             if (name === "TopicQA" && sidebarTopic()) {
