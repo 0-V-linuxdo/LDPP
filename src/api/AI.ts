@@ -104,6 +104,43 @@ export function getProfile(id?: string): AIProfile | null {
     return profiles.find(profile => profile.id === id) ?? profiles.find(profile => profile.id === provider.activeId()) ?? profiles[0] ?? null;
 }
 
+const MAX_REASON = 300;
+
+function clip(text: string): string {
+    const flat = text.replace(/\s+/g, " ").trim();
+    return flat.length > MAX_REASON ? `${flat.slice(0, MAX_REASON)}…` : flat;
+}
+
+/** Pulls a human-readable reason out of an error body (OpenAI style `{error:{message}}` and common variants). */
+export function errorBodyReason(text: string): string {
+    if (!text.trim()) return "";
+    let json: unknown;
+    try { json = JSON.parse(text); } catch {
+        // HTML error pages from gateways: keep only the title / visible text
+        const title = text.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1];
+        return clip(title ?? text.replace(/<[^>]+>/g, " "));
+    }
+    if (!isObject(json)) return clip(String(json));
+    const error = json.error;
+    const candidates = [
+        isObject(error) ? error.message : error,
+        json.message,
+        json.detail,
+        json.msg,
+        isObject(error) ? error.code ?? error.type : undefined,
+    ];
+    for (const candidate of candidates) {
+        if (typeof candidate === "string" && candidate.trim()) return clip(candidate);
+        if (isObject(candidate) || Array.isArray(candidate)) return clip(JSON.stringify(candidate));
+    }
+    return clip(text);
+}
+
+function httpError(status: number, text: string): AIError {
+    const reason = errorBodyReason(text);
+    return new AIError(`AI 接口返回 HTTP ${status}${reason ? `：${reason}` : ""}`, "HTTP", !NON_RETRYABLE_STATUS.has(status), text.slice(0, 4000));
+}
+
 function extractContent(json: Record<string, unknown>): string {
     const choice = Array.isArray(json.choices) ? json.choices[0] as Record<string, unknown> | undefined : undefined;
     const message = isObject(choice?.message) ? choice.message : null;
@@ -112,6 +149,10 @@ function extractContent(json: Record<string, unknown>): string {
     if (Array.isArray(content)) {
         const text = content.map(part => isObject(part) ? asString(part.text) : "").join("");
         if (text.trim()) return text;
+    }
+    if (!choice && json.error) {
+        const reason = errorBodyReason(JSON.stringify(json));
+        throw new AIError(`AI 接口返回错误：${reason}`, "BAD_RESPONSE", true, JSON.stringify(json, null, 2).slice(0, 4000));
     }
     const reason = asString(choice?.finish_reason);
     if (reason.toLowerCase().includes("content_filter")) throw new AIError(`模型内容安全策略拦截（${reason}）`, "CONTENT_FILTER", false, JSON.stringify(json, null, 2).slice(0, 4000));
@@ -140,9 +181,12 @@ export async function chat(target: AIProfile | null, messages: ChatMessage[], { 
         if (isAbortError(error)) throw error;
         throw new AIError(errorMessage(error), "NETWORK", true);
     }
-    if (!res.ok) throw new AIError(`AI 接口返回 HTTP ${res.status}`, "HTTP", !NON_RETRYABLE_STATUS.has(res.status), res.text.slice(0, 4000));
+    if (!res.ok) throw httpError(res.status, res.text);
     let json: unknown;
-    try { json = JSON.parse(res.text); } catch { throw new AIError("AI 接口返回的不是 JSON", "BAD_RESPONSE", true, res.text.slice(0, 4000)); }
+    try { json = JSON.parse(res.text); } catch {
+        const preview = errorBodyReason(res.text);
+        throw new AIError(`AI 接口返回的不是 JSON${preview ? `：${preview}` : "（响应为空）"}`, "BAD_RESPONSE", true, res.text.slice(0, 4000));
+    }
     if (!isObject(json)) throw new AIError("AI 接口返回的不是 JSON 对象", "BAD_RESPONSE", true, res.text.slice(0, 4000));
     return extractContent(json);
 }

@@ -28,18 +28,37 @@ export interface HttpResponse {
 const DEFAULT_TIMEOUT = 120_000;
 const CONTENT_TYPE = /^content-type:\s*([^\r\n]+)/im;
 
+export function gmErrorReason(error: unknown): string {
+    const info = typeof error === "object" && error ? error as Record<string, unknown> : {};
+    const parts: string[] = [];
+    const text = typeof info.error === "string" ? info.error.trim() : typeof error === "string" ? error.trim() : "";
+    if (text) parts.push(text);
+    const status = typeof info.status === "number" ? info.status : 0;
+    const statusText = typeof info.statusText === "string" ? info.statusText.trim() : "";
+    if (status > 0) parts.push(`HTTP ${status}${statusText ? ` ${statusText}` : ""}`);
+    else if (statusText && !parts.includes(statusText)) parts.push(statusText);
+    return parts.length ? parts.join("，") : "无法建立连接（可能是 DNS 解析失败、证书无效、代理拦截或服务器拒绝连接）";
+}
+
+function fetchErrorReason(error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error);
+    if (error instanceof TypeError) return `${message}（可能是跨域 CORS 被拦截、DNS 解析失败或服务器拒绝连接）`;
+    return message;
+}
+
 const hasGMRequest = () => typeof (globalThis as Record<string, unknown>).GM_xmlhttpRequest === "function";
 
 function viaGM(req: HttpRequest): Promise<HttpResponse> {
     return new Promise((resolve, reject) => {
         if (req.signal?.aborted) return reject(abortError());
+        const timeout = req.timeout ?? DEFAULT_TIMEOUT;
         const handle = GM_xmlhttpRequest({
             method: req.method ?? "GET",
             url: req.url,
             headers: req.headers,
             data: req.body,
             responseType: req.responseType === "arraybuffer" ? "arraybuffer" : "text",
-            timeout: req.timeout ?? DEFAULT_TIMEOUT,
+            timeout,
             anonymous: req.credentials === "omit",
             onload: res => {
                 req.signal?.removeEventListener("abort", onAbort);
@@ -52,8 +71,14 @@ function viaGM(req: HttpRequest): Promise<HttpResponse> {
                     contentType: res.responseHeaders?.match(CONTENT_TYPE)?.[1]?.trim() ?? "",
                 });
             },
-            onerror: () => reject(new Error(`网络请求失败：${req.url}`)),
-            ontimeout: () => reject(new Error(`请求超时：${req.url}`)),
+            onerror: error => {
+                req.signal?.removeEventListener("abort", onAbort);
+                reject(new Error(`网络请求失败：${gmErrorReason(error)}（${req.url}）`));
+            },
+            ontimeout: () => {
+                req.signal?.removeEventListener("abort", onAbort);
+                reject(new Error(`请求超时：${Math.round(timeout / 1000)} 秒内没有响应（${req.url}）`));
+            },
             onabort: () => reject(abortError()),
         });
         const onAbort = () => handle?.abort();
@@ -63,7 +88,9 @@ function viaGM(req: HttpRequest): Promise<HttpResponse> {
 
 async function viaFetch(req: HttpRequest): Promise<HttpResponse> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), req.timeout ?? DEFAULT_TIMEOUT);
+    const timeout = req.timeout ?? DEFAULT_TIMEOUT;
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeout);
     const relay = () => controller.abort();
     req.signal?.addEventListener("abort", relay, { once: true });
     try {
@@ -84,7 +111,8 @@ async function viaFetch(req: HttpRequest): Promise<HttpResponse> {
         };
     } catch (error) {
         if (req.signal?.aborted) throw abortError();
-        throw error;
+        if (timedOut) throw new Error(`请求超时：${Math.round(timeout / 1000)} 秒内没有响应（${req.url}）`, { cause: error });
+        throw new Error(`网络请求失败：${fetchErrorReason(error)}（${req.url}）`, { cause: error });
     } finally {
         clearTimeout(timer);
         req.signal?.removeEventListener("abort", relay);

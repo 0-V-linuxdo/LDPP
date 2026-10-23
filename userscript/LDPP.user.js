@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261023.10
+// @version      20261023.11
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261023.10] v1.0.0 — a modification for linux.do
+ * LD++ [20261023.11] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -1096,6 +1096,7 @@ ${value} EOT;`;
     chatWithRetry: () => chatWithRetry,
     configureAI: () => configureAI,
     describeError: () => describeError,
+    errorBodyReason: () => errorBodyReason,
     getProfile: () => getProfile,
     getProfiles: () => getProfiles,
     isRetryable: () => isRetryable,
@@ -6444,18 +6445,39 @@ Please report this to https://github.com/markedjs/marked.`;
   // src/api/Http.ts
   var DEFAULT_TIMEOUT = 120000;
   var CONTENT_TYPE = /^content-type:\s*([^\r\n]+)/im;
+  function gmErrorReason(error) {
+    const info = typeof error === "object" && error ? error : {};
+    const parts = [];
+    const text = typeof info.error === "string" ? info.error.trim() : typeof error === "string" ? error.trim() : "";
+    if (text)
+      parts.push(text);
+    const status = typeof info.status === "number" ? info.status : 0;
+    const statusText = typeof info.statusText === "string" ? info.statusText.trim() : "";
+    if (status > 0)
+      parts.push(`HTTP ${status}${statusText ? ` ${statusText}` : ""}`);
+    else if (statusText && !parts.includes(statusText))
+      parts.push(statusText);
+    return parts.length ? parts.join("，") : "无法建立连接（可能是 DNS 解析失败、证书无效、代理拦截或服务器拒绝连接）";
+  }
+  function fetchErrorReason(error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (error instanceof TypeError)
+      return `${message}（可能是跨域 CORS 被拦截、DNS 解析失败或服务器拒绝连接）`;
+    return message;
+  }
   var hasGMRequest = () => typeof globalThis.GM_xmlhttpRequest === "function";
   function viaGM(req) {
     return new Promise((resolve, reject) => {
       if (req.signal?.aborted)
         return reject(abortError());
+      const timeout = req.timeout ?? DEFAULT_TIMEOUT;
       const handle = GM_xmlhttpRequest({
         method: req.method ?? "GET",
         url: req.url,
         headers: req.headers,
         data: req.body,
         responseType: req.responseType === "arraybuffer" ? "arraybuffer" : "text",
-        timeout: req.timeout ?? DEFAULT_TIMEOUT,
+        timeout,
         anonymous: req.credentials === "omit",
         onload: (res) => {
           req.signal?.removeEventListener("abort", onAbort);
@@ -6468,8 +6490,14 @@ Please report this to https://github.com/markedjs/marked.`;
             contentType: res.responseHeaders?.match(CONTENT_TYPE)?.[1]?.trim() ?? ""
           });
         },
-        onerror: () => reject(new Error(`网络请求失败：${req.url}`)),
-        ontimeout: () => reject(new Error(`请求超时：${req.url}`)),
+        onerror: (error) => {
+          req.signal?.removeEventListener("abort", onAbort);
+          reject(new Error(`网络请求失败：${gmErrorReason(error)}（${req.url}）`));
+        },
+        ontimeout: () => {
+          req.signal?.removeEventListener("abort", onAbort);
+          reject(new Error(`请求超时：${Math.round(timeout / 1000)} 秒内没有响应（${req.url}）`));
+        },
         onabort: () => reject(abortError())
       });
       const onAbort = () => handle?.abort();
@@ -6478,7 +6506,12 @@ Please report this to https://github.com/markedjs/marked.`;
   }
   async function viaFetch(req) {
     const controller = new AbortController;
-    const timer = setTimeout(() => controller.abort(), req.timeout ?? DEFAULT_TIMEOUT);
+    const timeout = req.timeout ?? DEFAULT_TIMEOUT;
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeout);
     const relay = () => controller.abort();
     req.signal?.addEventListener("abort", relay, { once: true });
     try {
@@ -6500,7 +6533,9 @@ Please report this to https://github.com/markedjs/marked.`;
     } catch (error) {
       if (req.signal?.aborted)
         throw abortError();
-      throw error;
+      if (timedOut)
+        throw new Error(`请求超时：${Math.round(timeout / 1000)} 秒内没有响应（${req.url}）`, { cause: error });
+      throw new Error(`网络请求失败：${fetchErrorReason(error)}（${req.url}）`, { cause: error });
     } finally {
       clearTimeout(timer);
       req.signal?.removeEventListener("abort", relay);
@@ -6567,6 +6602,43 @@ Please report this to https://github.com/markedjs/marked.`;
     const profiles = provider.list();
     return profiles.find((profile) => profile.id === id) ?? profiles.find((profile) => profile.id === provider.activeId()) ?? profiles[0] ?? null;
   }
+  var MAX_REASON = 300;
+  function clip(text) {
+    const flat = text.replace(/\s+/g, " ").trim();
+    return flat.length > MAX_REASON ? `${flat.slice(0, MAX_REASON)}…` : flat;
+  }
+  function errorBodyReason(text) {
+    if (!text.trim())
+      return "";
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      const title = text.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1];
+      return clip(title ?? text.replace(/<[^>]+>/g, " "));
+    }
+    if (!isObject(json))
+      return clip(String(json));
+    const error = json.error;
+    const candidates = [
+      isObject(error) ? error.message : error,
+      json.message,
+      json.detail,
+      json.msg,
+      isObject(error) ? error.code ?? error.type : undefined
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim())
+        return clip(candidate);
+      if (isObject(candidate) || Array.isArray(candidate))
+        return clip(JSON.stringify(candidate));
+    }
+    return clip(text);
+  }
+  function httpError(status, text) {
+    const reason = errorBodyReason(text);
+    return new AIError(`AI 接口返回 HTTP ${status}${reason ? `：${reason}` : ""}`, "HTTP", !NON_RETRYABLE_STATUS.has(status), text.slice(0, 4000));
+  }
   function extractContent(json) {
     const choice = Array.isArray(json.choices) ? json.choices[0] : undefined;
     const message = isObject(choice?.message) ? choice.message : null;
@@ -6577,6 +6649,10 @@ Please report this to https://github.com/markedjs/marked.`;
       const text = content.map((part) => isObject(part) ? asString(part.text) : "").join("");
       if (text.trim())
         return text;
+    }
+    if (!choice && json.error) {
+      const reason = errorBodyReason(JSON.stringify(json));
+      throw new AIError(`AI 接口返回错误：${reason}`, "BAD_RESPONSE", true, JSON.stringify(json, null, 2).slice(0, 4000));
     }
     const reason = asString(choice?.finish_reason);
     if (reason.toLowerCase().includes("content_filter"))
@@ -6608,12 +6684,13 @@ Please report this to https://github.com/markedjs/marked.`;
       throw new AIError(errorMessage(error), "NETWORK", true);
     }
     if (!res.ok)
-      throw new AIError(`AI 接口返回 HTTP ${res.status}`, "HTTP", !NON_RETRYABLE_STATUS.has(res.status), res.text.slice(0, 4000));
+      throw httpError(res.status, res.text);
     let json;
     try {
       json = JSON.parse(res.text);
     } catch {
-      throw new AIError("AI 接口返回的不是 JSON", "BAD_RESPONSE", true, res.text.slice(0, 4000));
+      const preview = errorBodyReason(res.text);
+      throw new AIError(`AI 接口返回的不是 JSON${preview ? `：${preview}` : "（响应为空）"}`, "BAD_RESPONSE", true, res.text.slice(0, 4000));
     }
     if (!isObject(json))
       throw new AIError("AI 接口返回的不是 JSON 对象", "BAD_RESPONSE", true, res.text.slice(0, 4000));
@@ -12315,7 +12392,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.10] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"25ee115"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.11] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"9305eb8"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -19923,7 +20000,7 @@ div#reply-control .reply-area {
   // src/LDPP.ts
   var logger17 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261023.10] v1.0.0";
+  var version = "[20261023.11] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -19937,7 +20014,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger17.info(`LD++ ${"[20261023.10] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger17.info(`LD++ ${"[20261023.11] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 
