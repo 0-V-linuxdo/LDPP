@@ -111,7 +111,13 @@ export function showToast(message: string, type: ToastType = "info", options: To
     }));
     if (options.onClick) {
         el.classList.add("is-clickable");
-        el.addEventListener("click", () => options.onClick?.());
+        // As in the original summary script: a click takes you to the topic and the toast goes away. Only the × button
+        // counts as dismissing it, so onDismiss (which cancels a running summary) is not called here.
+        el.addEventListener("click", () => {
+            if (closed) return;
+            options.onClick?.();
+            handle.close();
+        });
     }
     if (options.topicId && topicLine) {
         const topicId = options.topicId;

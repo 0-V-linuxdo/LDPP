@@ -222,7 +222,10 @@ function batchToast(key: string, what: string, batch: JudgeInput[], error: unkno
     showToast(message, "error", {
         topicId: batch.length === 1 ? batch[0].topicId : undefined,
         key,
-        onClick: () => locateBatch(batchFailures.get(key) ?? []),
+        onClick: () => {
+            locateBatch(batchFailures.get(key) ?? []);
+            batchFailures.delete(key);
+        },
         onDismiss: () => batchFailures.delete(key),
     });
 }
