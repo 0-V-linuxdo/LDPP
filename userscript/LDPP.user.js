@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261023.5
+// @version      20261023.6
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261023.5] v1.0.0 — a modification for linux.do
+ * LD++ [20261023.6] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -1324,6 +1324,23 @@ ${value} EOT;`;
     --ldpp-classic-error: rgb(231 76 60 / 90%);
 }
 
+/* The original script's dark scheme: the same colours, a little more see-through. */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --ldpp-classic-info: rgb(74 144 226 / 85%);
+        --ldpp-classic-success: rgb(46 204 113 / 85%);
+        --ldpp-classic-warning: rgb(241 196 15 / 85%);
+        --ldpp-classic-error: rgb(231 76 60 / 85%);
+    }
+}
+
+html.dark {
+    --ldpp-classic-info: rgb(74 144 226 / 85%);
+    --ldpp-classic-success: rgb(46 204 113 / 85%);
+    --ldpp-classic-warning: rgb(241 196 15 / 85%);
+    --ldpp-classic-error: rgb(231 76 60 / 85%);
+}
+
 .ldpp-icon {
     display: block;
     flex: none;
@@ -2393,7 +2410,11 @@ tr.topic-list-item.ldpp-flash > td {
     height: 1.5rem;
 }
 
-/* The original summary script's look: a solid card in the type's colour, white text, a divider above the topic. */
+/*
+ * The original summary script's look (v1.0.17, its base styles plus the "弹窗优化" layer it appends): a solid card in
+ * the type's colour with white text, a faint white border, a drop shadow, a white bar down the left edge, and a divider
+ * above the topic. Warning cards use dark text and a dark bar.
+ */
 .ldpp-toasts-classic {
     right: 20px;
     bottom: 20px;
@@ -2402,12 +2423,13 @@ tr.topic-list-item.ldpp-flash > td {
 }
 
 .ldpp-toasts-classic .ldpp-toast {
+    overflow: hidden;
     padding: 12px 30px 12px 15px;
-    border: none;
-    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, #fff 22%, transparent);
+    border-radius: 12px;
     background: var(--ldpp-classic-info);
     color: #fff;
-    box-shadow: none;
+    box-shadow: 0 12px 28px rgb(0 0 0 / 22%);
     transform: translateY(8px);
     transition: transform 0.3s ease, opacity 0.3s ease;
 }
@@ -2420,8 +2442,20 @@ tr.topic-list-item.ldpp-flash > td {
     background: var(--ldpp-classic-success);
 }
 
+.ldpp-toasts-classic .ldpp-toast::before {
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    left: 0;
+    width: 3px;
+    border-radius: 999px;
+    background: currentcolor;
+    content: "";
+}
+
 .ldpp-toasts-classic .ldpp-toast-warning {
     background: var(--ldpp-classic-warning);
+    color: #2a2108;
 }
 
 .ldpp-toasts-classic .ldpp-toast-error {
@@ -2457,7 +2491,7 @@ tr.topic-list-item.ldpp-flash > td {
     top: 5px;
     right: 5px;
     border-radius: 50%;
-    --ldpp-btn-tone: #fff;
+    --ldpp-btn-tone: currentcolor;
     opacity: 0.7;
 }
 
@@ -7160,6 +7194,7 @@ Please report this to https://github.com/markedjs/marked.`;
   // src/api/Notifications.ts
   var DEFAULT_CONFIG = { enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 }, style: "ldpp" };
   var TITLE_WIDTH = 34;
+  var CLASSIC_TITLE_WIDTH = 28;
   var readConfig = () => DEFAULT_CONFIG;
   var byKey = new Map;
   function configureToasts(getter) {
@@ -7197,7 +7232,8 @@ Please report this to https://github.com/markedjs/marked.`;
       return existing;
     }
     const text = h("span", { class: "ldpp-toast-text" }, message);
-    const topicLine = options.topicId ? h("div", { class: "ldpp-toast-topic" }, `\uD83D\uDCCC 话题 #${options.topicId}`) : null;
+    const classic = readConfig().style === "classic";
+    const topicLine = options.topicId ? h("div", { class: "ldpp-toast-topic" }, classic ? `\uD83D\uDCCC 话题#${options.topicId}` : `\uD83D\uDCCC 话题 #${options.topicId}`) : null;
     const el = h("div", { class: `ldpp-toast ldpp-toast-${type}`, attrs: { role: type === "error" ? "alert" : "status" } }, h("span", { class: "ldpp-toast-dot" }), h("div", { class: "ldpp-toast-main" }, text, topicLine));
     let timer = null;
     let closed = false;
@@ -7256,7 +7292,7 @@ Please report this to https://github.com/markedjs/marked.`;
       resolveTopicTitle(topicId).then((title) => {
         if (!title || closed)
           return;
-        topicLine.textContent = `\uD83D\uDCCC ${truncateVisual(title, TITLE_WIDTH)}`;
+        topicLine.textContent = `\uD83D\uDCCC ${truncateVisual(title, classic ? CLASSIC_TITLE_WIDTH : TITLE_WIDTH)}`;
         topicLine.title = title;
       }, () => {
         return;
@@ -12169,7 +12205,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.5] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"70de795"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.6] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"b1709b7"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -18371,7 +18407,7 @@ div#reply-control .reply-area {
   // src/LDPP.ts
   var logger15 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261023.5] v1.0.0";
+  var version = "[20261023.6] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -18385,7 +18421,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger15.info(`LD++ ${"[20261023.5] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger15.info(`LD++ ${"[20261023.6] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 

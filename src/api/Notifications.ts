@@ -40,6 +40,8 @@ export interface ToastHandle {
 
 const DEFAULT_CONFIG: ToastConfig = { enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 }, style: "ldpp" };
 const TITLE_WIDTH = 34;
+// The original script cut topic titles to 28 columns and wrote the fallback without a space.
+const CLASSIC_TITLE_WIDTH = 28;
 
 let readConfig: () => ToastConfig = () => DEFAULT_CONFIG;
 const byKey = new Map<string, ToastHandle>();
@@ -82,7 +84,8 @@ export function showToast(message: string, type: ToastType = "info", options: To
         return existing;
     }
     const text = h("span", { class: "ldpp-toast-text" }, message);
-    const topicLine = options.topicId ? h("div", { class: "ldpp-toast-topic" }, `📌 话题 #${options.topicId}`) : null;
+    const classic = readConfig().style === "classic";
+    const topicLine = options.topicId ? h("div", { class: "ldpp-toast-topic" }, classic ? `📌 话题#${options.topicId}` : `📌 话题 #${options.topicId}`) : null;
     const el = h("div", { class: `ldpp-toast ldpp-toast-${type}`, attrs: { role: type === "error" ? "alert" : "status" } },
         h("span", { class: "ldpp-toast-dot" }),
         h("div", { class: "ldpp-toast-main" }, text, topicLine),
@@ -135,7 +138,7 @@ export function showToast(message: string, type: ToastType = "info", options: To
         const topicId = options.topicId;
         resolveTopicTitle(topicId).then(title => {
             if (!title || closed) return;
-            topicLine.textContent = `📌 ${truncateVisual(title, TITLE_WIDTH)}`;
+            topicLine.textContent = `📌 ${truncateVisual(title, classic ? CLASSIC_TITLE_WIDTH : TITLE_WIDTH)}`;
             topicLine.title = title;
         }, () => undefined);
     }

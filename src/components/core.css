@@ -28,6 +28,23 @@
     --ldpp-classic-error: rgb(231 76 60 / 90%);
 }
 
+/* The original script's dark scheme: the same colours, a little more see-through. */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --ldpp-classic-info: rgb(74 144 226 / 85%);
+        --ldpp-classic-success: rgb(46 204 113 / 85%);
+        --ldpp-classic-warning: rgb(241 196 15 / 85%);
+        --ldpp-classic-error: rgb(231 76 60 / 85%);
+    }
+}
+
+html.dark {
+    --ldpp-classic-info: rgb(74 144 226 / 85%);
+    --ldpp-classic-success: rgb(46 204 113 / 85%);
+    --ldpp-classic-warning: rgb(241 196 15 / 85%);
+    --ldpp-classic-error: rgb(231 76 60 / 85%);
+}
+
 .ldpp-icon {
     display: block;
     flex: none;
@@ -1097,7 +1114,11 @@ tr.topic-list-item.ldpp-flash > td {
     height: 1.5rem;
 }
 
-/* The original summary script's look: a solid card in the type's colour, white text, a divider above the topic. */
+/*
+ * The original summary script's look (v1.0.17, its base styles plus the "弹窗优化" layer it appends): a solid card in
+ * the type's colour with white text, a faint white border, a drop shadow, a white bar down the left edge, and a divider
+ * above the topic. Warning cards use dark text and a dark bar.
+ */
 .ldpp-toasts-classic {
     right: 20px;
     bottom: 20px;
@@ -1106,12 +1127,13 @@ tr.topic-list-item.ldpp-flash > td {
 }
 
 .ldpp-toasts-classic .ldpp-toast {
+    overflow: hidden;
     padding: 12px 30px 12px 15px;
-    border: none;
-    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, #fff 22%, transparent);
+    border-radius: 12px;
     background: var(--ldpp-classic-info);
     color: #fff;
-    box-shadow: none;
+    box-shadow: 0 12px 28px rgb(0 0 0 / 22%);
     transform: translateY(8px);
     transition: transform 0.3s ease, opacity 0.3s ease;
 }
@@ -1124,8 +1146,20 @@ tr.topic-list-item.ldpp-flash > td {
     background: var(--ldpp-classic-success);
 }
 
+.ldpp-toasts-classic .ldpp-toast::before {
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    left: 0;
+    width: 3px;
+    border-radius: 999px;
+    background: currentcolor;
+    content: "";
+}
+
 .ldpp-toasts-classic .ldpp-toast-warning {
     background: var(--ldpp-classic-warning);
+    color: #2a2108;
 }
 
 .ldpp-toasts-classic .ldpp-toast-error {
@@ -1161,7 +1195,7 @@ tr.topic-list-item.ldpp-flash > td {
     top: 5px;
     right: 5px;
     border-radius: 50%;
-    --ldpp-btn-tone: #fff;
+    --ldpp-btn-tone: currentcolor;
     opacity: 0.7;
 }
 
