@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261023.9
+// @version      20261023.10
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261023.9] v1.0.0 — a modification for linux.do
+ * LD++ [20261023.10] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -12315,7 +12315,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.9] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"94dcfa7"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.10] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"25ee115"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -19894,7 +19894,7 @@ div#reply-control .reply-area {
 
   // ldpp-virtual:~plugins
   ai_default.updatedAt = 1792361044000;
-  notifications_default.updatedAt = 1792789819000;
+  notifications_default.updatedAt = 1792792962000;
   settings_default.updatedAt = 1792792379000;
   userStyles_default.updatedAt = 1792361044000;
   postTimestamps_default.updatedAt = 1792792379000;
@@ -19923,7 +19923,7 @@ div#reply-control .reply-area {
   // src/LDPP.ts
   var logger17 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261023.9] v1.0.0";
+  var version = "[20261023.10] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -19937,7 +19937,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger17.info(`LD++ ${"[20261023.9] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger17.info(`LD++ ${"[20261023.10] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 
