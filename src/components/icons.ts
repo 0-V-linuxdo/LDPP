@@ -111,3 +111,9 @@ export const StopIcon = stroke(["rect", { x: "6", y: "6", width: "12", height: "
 export const TagIcon = stroke(path("M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"), circle(7.5, 7.5, 0.5));
 /** Lucide "eraser" — 去除隐藏水印. */
 export const EraserIcon = stroke(path("m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"), path("M22 21H7"), path("m5 11 9 9"));
+/** Lucide "download" — 话题导出. */
+export const DownloadIcon = stroke(path("M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"), path("M7 10l5 5 5-5"), path("M12 15V3"));
+/** Lucide "calendar-clock" — 楼层完整时间. */
+export const CalendarClockIcon = stroke(path("M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"), path("M16 2v4"), path("M8 2v4"), path("M3 10h5"), path("M17.5 17.5 16 16.3V14"), circle(16, 16, 6));
+/** Lucide "layout-grid" — 最近话题切换器. */
+export const LayoutGridIcon = stroke(["rect", { x: "3", y: "3", width: "7", height: "7", rx: "1" }], ["rect", { x: "14", y: "3", width: "7", height: "7", rx: "1" }], ["rect", { x: "14", y: "14", width: "7", height: "7", rx: "1" }], ["rect", { x: "3", y: "14", width: "7", height: "7", rx: "1" }]);

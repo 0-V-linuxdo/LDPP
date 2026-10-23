@@ -24,6 +24,8 @@ export interface TopicPost {
     id: number;
     post_number: number;
     username: string;
+    name?: string | null;
+    created_at?: string;
     cooked: string;
     raw?: string;
     reply_to_user?: { username?: string } | null;

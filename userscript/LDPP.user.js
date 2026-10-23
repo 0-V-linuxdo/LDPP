@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261023.8
+// @version      20261023.9
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261023.8] v1.0.0 — a modification for linux.do
+ * LD++ [20261023.9] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -1173,7 +1173,10 @@ ${value} EOT;`;
     return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
   }
   function downloadJson(data, fileName) {
-    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+    downloadText(JSON.stringify(data, null, 2), fileName, "application/json");
+  }
+  function downloadText(text, fileName, type = "text/plain") {
+    const url = URL.createObjectURL(new Blob([text], { type: `${type};charset=utf-8` }));
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = fileName;
@@ -5771,11 +5774,15 @@ Please report this to https://github.com/markedjs/marked.`;
   // src/utils/text.ts
   var WS = /\s+/g;
   var REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/g;
+  var HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
   function normalizeText(value) {
     return value == null ? "" : String(value).replace(WS, " ").trim();
   }
   function escapeRegExp(value) {
     return value.replace(REGEX_SPECIALS, "\\$&");
+  }
+  function escapeHtml(value) {
+    return value.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]);
   }
   function applyEdits(value, edits) {
     const hits = edits.map((edit, index) => ({ index, at: edit.from ? value.indexOf(edit.from) : -1 })).filter((hit) => hit.at >= 0).toSorted((a, b) => a.at - b.at);
@@ -5902,6 +5909,9 @@ Please report this to https://github.com/markedjs/marked.`;
     const text = normalizeText(title);
     if (text)
       titleCache.set(topicId, text);
+  }
+  function cachedTopicTitle(topicId) {
+    return titleCache.get(topicId) ?? "";
   }
   function resolveTopicTitle(topicId) {
     const cached = titleCache.get(topicId);
@@ -6726,6 +6736,9 @@ Please report this to https://github.com/markedjs/marked.`;
   var StopIcon = stroke(["rect", { x: "6", y: "6", width: "12", height: "12", rx: "2", fill: "currentColor" }]);
   var TagIcon = stroke(path("M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"), circle(7.5, 7.5, 0.5));
   var EraserIcon = stroke(path("m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"), path("M22 21H7"), path("m5 11 9 9"));
+  var DownloadIcon = stroke(path("M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"), path("M7 10l5 5 5-5"), path("M12 15V3"));
+  var CalendarClockIcon = stroke(path("M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"), path("M16 2v4"), path("M8 2v4"), path("M3 10h5"), path("M17.5 17.5 16 16.3V14"), circle(16, 16, 6));
+  var LayoutGridIcon = stroke(["rect", { x: "3", y: "3", width: "7", height: "7", rx: "1" }], ["rect", { x: "14", y: "3", width: "7", height: "7", rx: "1" }], ["rect", { x: "14", y: "14", width: "7", height: "7", rx: "1" }], ["rect", { x: "3", y: "14", width: "7", height: "7", rx: "1" }]);
 
   // src/components/controls.ts
   function Button(label, { kind = "default", icon, title, small, disabled, onClick } = {}) {
@@ -12125,7 +12138,7 @@ ${section.code}
       default: {}
     }
   });
-  var TAG_LABEL = { topics: "话题列表", reading: "阅读", ai: "AI", search: "搜索", sync: "同步" };
+  var TAG_LABEL = { topics: "话题列表", reading: "阅读", ai: "AI", search: "搜索", privacy: "隐私", sync: "同步" };
   var FILTERS2 = [
     { value: "all", label: "全部" },
     { value: "enabled", label: "已启用" },
@@ -12302,7 +12315,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.8] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"ecb2ed7"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.9] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"705f3f5"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -12362,6 +12375,368 @@ ${section.code}
         card.classList.toggle("is-off", !enabled);
       }
     }
+  });
+
+  // ldpp-css:src/plugins/postTimestamps/styles.css
+  registerStyle("postTimestamps", `.ldpp-post-time {
+    margin-inline-start: 0.4em;
+    color: var(--primary-medium, #888);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.ldpp-post-time::before {
+    content: "· ";
+}
+
+html.ldpp-post-time-replace .relative-date:has(+ .ldpp-post-time) {
+    display: none;
+}
+
+html.ldpp-post-time-replace .ldpp-post-time {
+    margin-inline-start: 0;
+}
+
+html.ldpp-post-time-replace .ldpp-post-time::before {
+    content: none;
+}
+`);
+
+  // ldpp-css:src/plugins/createdTime/styles.css
+  registerStyle("createdTime", `/* The creation time sits in Discourse's own cell; while it is there the view count beside it is hidden, not removed
+   (Ember keeps updating it). Colours are the original script's bands by age. */
+.ldpp-created-time {
+    font-weight: 400;
+    white-space: nowrap;
+}
+
+.topic-list td.views:has(> .ldpp-created-time) > .number {
+    display: none;
+}
+
+.topic-list td.views:has(> .ldpp-created-time),
+.topic-list td.activity:has(> .ldpp-created-time) {
+    white-space: nowrap;
+}
+
+.ldpp-created-time.is-day {
+    color: #45b5aa;
+}
+
+.ldpp-created-time.is-week {
+    color: #66a586;
+}
+
+.ldpp-created-time.is-month {
+    color: #cfa94a;
+}
+
+.ldpp-created-time.is-quarter {
+    color: #3e8ed2;
+}
+
+.ldpp-created-time.is-old {
+    color: #ccc;
+}
+
+.ldpp-created-tomb {
+    width: 1.5em;
+    height: 1.5em;
+    margin-right: 0.3em;
+    vertical-align: bottom;
+}
+`);
+
+  // src/plugins/createdTime/index.ts
+  var TIME = "ldpp-created-time";
+  var ACTIVITY_CELL = "td.activity[title], td.age[title]";
+  var DAY2 = 24 * 60 * 60 * 1000;
+  var HEADER_STYLE = "createdTime-header";
+  var VIEWS_HEADER = ".topic-list th.views";
+  var SORTED = "ldpp-created-sorted";
+  var ASCENDING = "ldpp-created-ascending";
+  var HEADER_CSS = `${VIEWS_HEADER} > button {
+    font-size: 0 !important;
+}
+${VIEWS_HEADER} > button::before {
+    content: "创建时间";
+    font-size: var(--font-down-1-rem, 0.8706rem);
+}
+html.${SORTED} ${VIEWS_HEADER} > button::after {
+    content: "";
+    display: inline-block;
+    width: 0.32rem;
+    height: 0.32rem;
+    margin-inline-start: 0.4rem;
+    border-right: 0.12rem solid currentColor;
+    border-bottom: 0.12rem solid currentColor;
+    vertical-align: 0.22rem;
+    transform: rotate(45deg);
+}
+html.${SORTED}.${ASCENDING} ${VIEWS_HEADER} > button::after {
+    vertical-align: 0.05rem;
+    transform: rotate(-135deg);
+}`;
+  var settings8 = definePluginSettings({
+    position: {
+      type: 3 /* SELECT */,
+      description: "显示位置",
+      options: [
+        { label: "替换浏览量", value: "views", default: true },
+        { label: "追加在活动时间后", value: "activity" }
+      ]
+    }
+  });
+  var position = () => settings8.store.position === "activity" ? "activity" : "views";
+  var MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+  function parseCreated(title) {
+    const line = title.split(`
+`)[0] ?? "";
+    const text = line.replace(/^[^:：]*[:：]\s*/, "").trim();
+    const zh = text.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*(\d{1,2}):(\d{2})/);
+    if (zh)
+      return new Date(+zh[1], +zh[2] - 1, +zh[3], +zh[4], +zh[5]).getTime();
+    const en = text.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4}),?\s+(\d{1,2}):(\d{2})\s*([ap]m)?/i);
+    if (en) {
+      let hours = +en[4] % 12;
+      if (en[6]?.toLowerCase() === "pm")
+        hours += 12;
+      else if (!en[6])
+        hours = +en[4];
+      return new Date(+en[3], MONTHS[en[1].toLowerCase()], +en[2], hours, +en[5]).getTime();
+    }
+    const parsed = Date.parse(text);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  var pad = (value) => String(value).padStart(2, "0");
+  function formatCreated(time, now = Date.now()) {
+    const date = new Date(time);
+    const today = new Date(now);
+    const clock = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    if (date.toDateString() === today.toDateString())
+      return clock;
+    const day = `${pad(date.getMonth() + 1)}/${pad(date.getDate())}`;
+    return date.getFullYear() === today.getFullYear() ? `${day} ${clock}` : `${date.getFullYear()}/${day} ${clock}`;
+  }
+  function ageOf(time, now = Date.now()) {
+    const age = now - time;
+    if (age < DAY2)
+      return "day";
+    if (age < 7 * DAY2)
+      return "week";
+    if (age < 30 * DAY2)
+      return "month";
+    if (age < 90 * DAY2)
+      return "quarter";
+    return "old";
+  }
+  var tombstone = () => {
+    const icon = svg("0 0 1024 1024", [["path", { fill: "#A51C30", d: "M916.992 813.44c11.008-44.032-9.856-53.632-9.856-53.632 7.168-23.552-12.8-46.592-12.8-46.592a72.448 72.448 0 0 0-12.032-34.816h-85.12V179.2a9.856 9.856 0 0 0-9.984-9.6h-54.144a9.856 9.856 0 0 1-9.472-7.168A204.8 204.8 0 0 0 524.8 14.208h-27.904a204.8 204.8 0 0 0-198.016 147.712 9.856 9.856 0 0 1-9.472 7.168h-51.968a10.496 10.496 0 0 0-10.752 10.368v499.2h-84.992v1.28a78.336 78.336 0 0 0-9.088 32.256s-22.656 23.296-15.36 46.72c0 0-20.736 9.856-9.344 53.504 0 0-66.176 11.776-49.408 193.536h83.072v0.768h740.608l86.528-0.896c14.72-181.376-51.712-192.384-51.712-192.384z" }]], 22);
+    icon.classList.add("ldpp-created-tomb");
+    return icon;
+  };
+  function fullDate(time) {
+    const date = new Date(time);
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+  function show(row, where, now) {
+    const activity = row.el.querySelector(ACTIVITY_CELL);
+    const views = row.el.querySelector("td.views");
+    const time = activity ? parseCreated(activity.getAttribute("title") ?? "") : null;
+    const host = (where === "views" ? views : null) ?? activity;
+    for (const old of row.el.querySelectorAll(`.${TIME}`))
+      if (old.parentElement !== host || time === null)
+        old.remove();
+    if (!host || time === null)
+      return;
+    const inViews = host === views;
+    const age = ageOf(time, now);
+    const text = inViews ? formatCreated(time, now) : `（${formatCreated(time, now)}）`;
+    const count = inViews ? views?.querySelector(".number")?.getAttribute("title") : null;
+    const tip = count ? `创建于 ${fullDate(time)}
+${count}` : `创建于 ${fullDate(time)}`;
+    const key = `${text}|${age}|${tip}`;
+    let span = host.querySelector(`:scope > .${TIME}`);
+    if (span?.dataset.key === key)
+      return;
+    span ??= mark(h("span", { class: TIME }), "created-time");
+    span.className = `${TIME} is-${age}`;
+    span.dataset.key = key;
+    span.title = tip;
+    span.replaceChildren(...age === "old" ? [tombstone(), text] : [text]);
+    if (span.parentElement !== host)
+      host.append(span);
+  }
+  function createdSortUrl(href) {
+    const url = new URL(href);
+    const ascending = url.searchParams.get("order") === "created" && url.searchParams.get("ascending") !== "true";
+    url.searchParams.set("ascending", String(ascending));
+    url.searchParams.set("order", "created");
+    return url.pathname + url.search + url.hash;
+  }
+  function syncSortState() {
+    const params = new URLSearchParams(location.search);
+    const sorted = active2 && position() === "views" && params.get("order") === "created";
+    document.documentElement.classList.toggle(SORTED, sorted);
+    document.documentElement.classList.toggle(ASCENDING, sorted && params.get("ascending") === "true");
+  }
+  function onHeaderClick(event) {
+    if (position() !== "views" || !(event.target instanceof Element) || !event.target.closest(VIEWS_HEADER))
+      return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    routeTo(createdSortUrl(location.href));
+  }
+  function labelHeaders() {
+    for (const button of document.querySelectorAll(`${VIEWS_HEADER} > button`)) {
+      if (position() === "views") {
+        button.title = "按创建时间排序";
+        button.setAttribute("aria-label", "创建时间");
+      } else if (button.title === "按创建时间排序") {
+        button.removeAttribute("title");
+        button.removeAttribute("aria-label");
+      }
+    }
+  }
+  function applyHeader() {
+    if (active2 && position() === "views")
+      registerStyle(HEADER_STYLE, HEADER_CSS);
+    else
+      unregisterStyle(HEADER_STYLE);
+    labelHeaders();
+    syncSortState();
+  }
+  function showCreatedTimes(rows) {
+    const where = position();
+    const now = Date.now();
+    for (const row of rows)
+      show(row, where, now);
+    if (active2) {
+      labelHeaders();
+      syncSortState();
+    }
+  }
+  var timer;
+  var active2 = false;
+  var listeners3 = null;
+  var createdTime_default = definePlugin({
+    name: "CreatedTime",
+    displayName: "话题列表显示创建时间",
+    description: "在话题列表里显示每个话题的创建时间，可替换浏览量或追加在活动时间后，按新旧着色，三个月以上的话题带墓碑标记（来自 linuxdo-scripts）。",
+    tags: ["topics"],
+    icon: ClockIcon,
+    enabledByDefault: true,
+    settings: settings8,
+    start() {
+      active2 = true;
+      listeners3 = new AbortController;
+      window.addEventListener("click", onHeaderClick, { capture: true, signal: listeners3.signal });
+      applyHeader();
+      registerProcessor({ id: "created-time", run: showCreatedTimes });
+      timer = setInterval(() => {
+        if (document.visibilityState === "visible")
+          showCreatedTimes(getRows());
+      }, 60000);
+    },
+    stop() {
+      active2 = false;
+      listeners3?.abort();
+      listeners3 = null;
+      applyHeader();
+      unregisterProcessor("created-time");
+      clearInterval(timer);
+      timer = undefined;
+      for (const span of document.querySelectorAll(`.${TIME}`))
+        span.remove();
+    },
+    onSettingsChange() {
+      applyHeader();
+      showCreatedTimes(getRows());
+    },
+    events: {
+      navigate: syncSortState
+    }
+  });
+
+  // src/plugins/postTimestamps/index.ts
+  var TIME2 = "ldpp-post-time";
+  var DATE = ".topic-post .post-info.post-date .relative-date[data-time], .topic-post a.post-date .relative-date[data-time]";
+  var REPLACE = "ldpp-post-time-replace";
+  var settings9 = definePluginSettings({
+    mode: {
+      type: 3 /* SELECT */,
+      description: "显示方式",
+      options: [
+        { label: "追加在相对时间后（3 小时 · 19:46）", value: "append", default: true },
+        { label: "替换相对时间", value: "replace" }
+      ]
+    }
+  });
+  var pad3 = (value) => String(value).padStart(2, "0");
+  function fullTime(time) {
+    const date = new Date(time);
+    return `${date.getFullYear()}-${pad3(date.getMonth() + 1)}-${pad3(date.getDate())} ${pad3(date.getHours())}:${pad3(date.getMinutes())}:${pad3(date.getSeconds())}`;
+  }
+  function stampPosts(root = document, now = Date.now()) {
+    for (const date of root.querySelectorAll(DATE)) {
+      const time = Number(date.dataset.time);
+      if (!Number.isFinite(time) || time <= 0)
+        continue;
+      const text = formatCreated(time, now);
+      let span = date.nextElementSibling instanceof HTMLElement && date.nextElementSibling.classList.contains(TIME2) ? date.nextElementSibling : null;
+      if (span?.textContent === text)
+        continue;
+      span ??= mark(h("span", { class: TIME2 }), "post-time");
+      span.textContent = text;
+      span.title = fullTime(time);
+      if (span.previousElementSibling !== date)
+        date.after(span);
+    }
+  }
+  function applyMode() {
+    document.documentElement.classList.toggle(REPLACE, active3 && settings9.store.mode === "replace");
+  }
+  var active3 = false;
+  var observer3 = null;
+  var flushTimer;
+  var clock;
+  var postTimestamps_default = definePlugin({
+    name: "PostTimestamps",
+    displayName: "楼层完整时间",
+    description: "在每层楼的相对时间（「3 小时」）旁直接显示发帖时间，今天的只显示时分，也可替换相对时间（对照 Void++ MessageTimestamps）。",
+    tags: ["reading"],
+    icon: CalendarClockIcon,
+    enabledByDefault: true,
+    settings: settings9,
+    start() {
+      active3 = true;
+      applyMode();
+      observer3 = new MutationObserver(() => {
+        flushTimer ??= setTimeout(() => {
+          flushTimer = undefined;
+          stampPosts();
+        }, 100);
+      });
+      observer3.observe(document.documentElement, { childList: true, subtree: true });
+      stampPosts();
+      clock = setInterval(() => {
+        if (document.visibilityState === "visible")
+          stampPosts();
+      }, 60000);
+    },
+    stop() {
+      active3 = false;
+      applyMode();
+      observer3?.disconnect();
+      observer3 = null;
+      clearTimeout(flushTimer);
+      flushTimer = undefined;
+      clearInterval(clock);
+      clock = undefined;
+      for (const span of document.querySelectorAll(`.${TIME2}`))
+        span.remove();
+    },
+    onSettingsChange: applyMode
   });
 
   // ldpp-css:src/plugins/topicSummary/styles.css
@@ -12816,7 +13191,7 @@ ${body}`;
   var logger10 = new Logger("Summary", "#89dceb");
   var operations = new Map;
   var errors = new Map;
-  var listeners3 = new Set;
+  var listeners4 = new Set;
   var remoteSources = new Set;
   var config = null;
   function configureEngine(next) {
@@ -12830,11 +13205,11 @@ ${body}`;
     return remoteSources.size > 0;
   }
   function onSummaryState(listener) {
-    listeners3.add(listener);
-    return () => listeners3.delete(listener);
+    listeners4.add(listener);
+    return () => listeners4.delete(listener);
   }
   function notify(topicId) {
-    for (const listener of Array.from(listeners3)) {
+    for (const listener of Array.from(listeners4)) {
       try {
         listener(topicId);
       } catch (error) {
@@ -12927,11 +13302,15 @@ ${content.text}`, images) }
         throw abortError("已离开话题，自动总结取消");
     };
     notify(topicId);
+    let outcome = "cancel";
+    let failure = "";
+    dispatch("aiTask", { kind: "summary", topicId, state: "start" });
     try {
       if (!hasSummary(topicId) && Summarized.has(topicId) && hasRemoteSource()) {
         setStatus("正在从云端拉取已有总结…");
         if (await pullRemote(topicId, signal)) {
           op.toast.update("已从云端拉取总结", "success");
+          outcome = "done";
           return true;
         }
         guard();
@@ -12966,12 +13345,14 @@ ${content.text}`, images) }
       guard();
       if (mode === "auto" && hasSummary(topicId)) {
         op.toast.update("已有总结，已停止自动总结", "success");
+        outcome = "done";
         return true;
       }
       const filter = config.filter();
       const summary = filter.enabled ? stripFences(raw, filter.prefixes, filter.suffixes) : raw.trim();
       addSummary(topicId, { summary, timestamp: new Date().toISOString(), model: profile.model || "未知模型", renderMode: renderModeOf(prompt, summary) });
       op.toast.update(mode === "auto" ? "自动总结完成" : "总结完成", "success");
+      outcome = "done";
       return true;
     } catch (error) {
       if (isAbortError(error)) {
@@ -12985,12 +13366,15 @@ ${content.text}`, images) }
         return false;
       }
       logger10.error(`话题 ${topicId} 总结失败`, error);
+      outcome = "error";
+      failure = errorMessage(error);
       op.toast.update(`总结失败：${errorMessage(error)}`, "error");
       return false;
     } finally {
       if (operations.get(topicId) === op)
         operations.delete(topicId);
       notify(topicId);
+      dispatch("aiTask", { kind: "summary", topicId, state: outcome, message: failure || undefined });
     }
   }
 
@@ -13087,7 +13471,7 @@ html.ldpp-sidebar-width-resizing * {
   var MIN_MAIN = 200;
   var LEGACY_KEY = "discourseSidebarWidth";
   var LAYOUT_STYLE = "sidebarWidth-layout";
-  var settings8 = definePluginSettings({
+  var settings10 = definePluginSettings({
     width: {
       type: 4 /* SLIDER */,
       description: "侧边栏宽度（也可以拖动侧边栏右侧边缘调整，双击边缘恢复默认）。",
@@ -13114,7 +13498,7 @@ html.ldpp-sidebar-width-resizing * {
   function clampWidth(width, room) {
     return Math.round(Math.max(MIN_WIDTH, Math.min(width, Math.max(MIN_WIDTH, room - MIN_MAIN))));
   }
-  var currentWidth = () => Number(settings8.store.width) || DEFAULT_WIDTH;
+  var currentWidth = () => Number(settings10.store.width) || DEFAULT_WIDTH;
   function applyWidth(width = currentWidth()) {
     registerStyle(LAYOUT_STYLE, `body:not(.mobile-view) #main-outlet-wrapper { --d-sidebar-width: ${Math.round(width)}px !important; }`);
   }
@@ -13161,7 +13545,7 @@ html.ldpp-sidebar-width-resizing * {
     handle.hidden = false;
     handle.style.left = `${rect.right}px`;
     handle.style.top = `${rect.top}px`;
-    handle.style.height = `${handleHeight(rect.height, settings8.store.topThird !== false)}px`;
+    handle.style.height = `${handleHeight(rect.height, settings10.store.topThird !== false)}px`;
   }
   function handleHeight(sidebarHeight, topThird) {
     return Math.round(topThird ? sidebarHeight / 3 : sidebarHeight);
@@ -13196,14 +13580,14 @@ html.ldpp-sidebar-width-resizing * {
       window.removeEventListener("pointercancel", end);
       target.classList.remove("is-active");
       document.documentElement.classList.remove("ldpp-sidebar-width-resizing");
-      settings8.store.width = width;
+      settings10.store.width = width;
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end);
     window.addEventListener("pointercancel", end);
   }
   function onDoubleClick() {
-    settings8.reset("width");
+    settings10.reset("width");
     applyWidth();
     schedule3();
   }
@@ -13228,13 +13612,13 @@ html.ldpp-sidebar-width-resizing * {
     tags: ["reading"],
     icon: PanelLeftIcon,
     enabledByDefault: true,
-    settings: settings8,
+    settings: settings10,
     start() {
-      if (!settings8.store.legacyImported) {
+      if (!settings10.store.legacyImported) {
         const legacy = parseLegacyWidth(localStorage.getItem(LEGACY_KEY));
         if (legacy != null)
-          settings8.store.width = legacy;
-        settings8.store.legacyImported = true;
+          settings10.store.width = legacy;
+        settings10.store.legacyImported = true;
       }
       applyWidth();
       onReady(mount);
@@ -13556,6 +13940,70 @@ textarea.ldpp-qa-input::placeholder {
 }
 `);
 
+  // src/plugins/topicQA/history.ts
+  var KEY = "LDPP.qaHistory";
+  function loadHistory() {
+    const raw = gmGet(KEY, []);
+    return Array.isArray(raw) ? raw.filter((item) => typeof item === "string" && Boolean(item.trim())) : [];
+  }
+  function pushHistory(list, question, limit) {
+    const text = question.trim();
+    if (!text)
+      return [...list];
+    return [text, ...list.filter((item) => item !== text)].slice(0, Math.max(0, limit));
+  }
+  function rememberQuestion(question, limit) {
+    gmSet(KEY, pushHistory(loadHistory(), question, limit));
+  }
+  function clearHistory() {
+    gmSet(KEY, []);
+  }
+
+  class HistoryCursor {
+    entries;
+    index = -1;
+    draft = "";
+    constructor(entries) {
+      this.entries = entries;
+    }
+    get browsing() {
+      return this.index >= 0;
+    }
+    older(current) {
+      const list = this.entries();
+      if (this.index + 1 >= list.length)
+        return null;
+      if (this.index < 0)
+        this.draft = current;
+      this.index++;
+      return list[this.index];
+    }
+    newer() {
+      if (this.index < 0)
+        return null;
+      this.index--;
+      return this.index < 0 ? this.draft : this.entries()[this.index] ?? this.draft;
+    }
+    restore() {
+      if (this.index < 0)
+        return null;
+      this.index = -1;
+      return this.draft;
+    }
+    reset() {
+      this.index = -1;
+      this.draft = "";
+    }
+  }
+  function onFirstLine(field) {
+    return field.selectionStart === field.selectionEnd && !field.value.slice(0, field.selectionStart).includes(`
+`);
+  }
+  function onLastLine(field) {
+    return field.selectionStart === field.selectionEnd && !field.value.slice(field.selectionEnd).includes(`
+`);
+  }
+
   // src/plugins/topicQA/index.ts
   var logger11 = new Logger("TopicQA", "#cba6f7");
   var CONTENT_TTL_MS = 5 * 60000;
@@ -13575,9 +14023,9 @@ textarea.ldpp-qa-input::placeholder {
   function renderPresetEditor() {
     const root = h("div", { class: "ldpp-preset-editor" });
     const render = () => {
-      const presets = normalizePresets(settings9.store.presets);
+      const presets = normalizePresets(settings11.store.presets);
       const save = (next) => {
-        settings9.store.presets = next;
+        settings11.store.presets = next;
       };
       root.replaceChildren(...presets.map((preset, index) => h("div", { class: "ldpp-preset-row" }, TextInput({ value: preset.name, placeholder: "名称", onChange: (value) => save(presets.map((item, i) => i === index ? { ...item, name: value.trim() || item.name } : item)) }), TextInput({ value: preset.prompt, multiline: true, rows: 2, placeholder: "预设问题", onChange: (value) => save(presets.map((item, i) => i === index ? { ...item, prompt: value.trim() } : item).filter((item) => item.prompt)) }), IconButton(TrashIcon(), { title: "删除", onClick: () => {
         save(presets.filter((_, i) => i !== index));
@@ -13590,7 +14038,7 @@ textarea.ldpp-qa-input::placeholder {
     render();
     return root;
   }
-  var settings9 = definePluginSettings({
+  var settings11 = definePluginSettings({
     presets: {
       type: 6 /* CUSTOM */,
       default: []
@@ -13600,6 +14048,27 @@ textarea.ldpp-qa-input::placeholder {
       description: "提问预设",
       render: renderPresetEditor
     },
+    inputHistory: {
+      type: 2 /* BOOLEAN */,
+      description: "在提问框按 ↑ / ↓ 翻看问过的问题，Esc 回到正在输入的内容（对照 Void++ InputHistory）。",
+      default: true
+    },
+    historyLimit: {
+      type: 4 /* SLIDER */,
+      description: "最多保留几条提问历史。",
+      min: 10,
+      max: 500,
+      step: 10,
+      default: 100
+    },
+    clearInputHistory: {
+      type: 5 /* COMPONENT */,
+      description: "清空提问历史",
+      render: () => Button("清空提问历史", { small: true, onClick: () => {
+        clearHistory();
+        showToast("提问历史已清空", "success");
+      } })
+    },
     historyTurns: {
       type: 4 /* SLIDER */,
       description: "追问时带上最近几轮问答作为上下文。",
@@ -13608,8 +14077,15 @@ textarea.ldpp-qa-input::placeholder {
       default: 8
     }
   });
+  function historyEntries() {
+    const stored = loadHistory();
+    if (stored.length)
+      return stored;
+    const records = Object.values(Questions.all()).flat().toSorted((a, b) => b.timestamp.localeCompare(a.timestamp));
+    return [...new Set(records.map((record) => record.question.trim()).filter(Boolean))].slice(0, settings11.store.historyLimit);
+  }
   function allPresets() {
-    return [...BUILTIN_PRESETS, ...normalizePresets(settings9.store.presets)];
+    return [...BUILTIN_PRESETS, ...normalizePresets(settings11.store.presets)];
   }
   var contentCache = new Map;
   var running = new Map;
@@ -13661,11 +14137,14 @@ ${content.text}`
     running.set(topicId, controller);
     pending2.set(topicId, { question, presetName: preset?.name ?? "" });
     notify2(topicId);
+    let outcome = "cancel";
+    let failure = "";
+    dispatch("aiTask", { kind: "question", topicId, state: "start" });
     try {
       const profile = requireProfile(getProfile());
       const content = await topicContent(topicId, profile, controller.signal);
       const images = profile.imageInput && content.images.length ? (await prepareImages(content.images, profile, controller.signal)).prepared : [];
-      const turns = settings9.store.historyTurns;
+      const turns = settings11.store.historyTurns;
       const history = turns > 0 ? (Questions.get(topicId) ?? []).slice(0, turns).toReversed() : [];
       const messages = buildQuestionMessages(content, question, history, images.length);
       messages[1].content = userContent(messages[1].content, images);
@@ -13674,17 +14153,21 @@ ${content.text}`
         onRetry: (notice) => showToast(`提问失败，第 ${notice.attempt}/${notice.total} 次重试…`, "warning", { topicId, key: `qa:${topicId}`, onClick: (type) => focusTopic(topicId, "question", type) })
       });
       addQuestion(topicId, { id: randomId("qa-"), question, answer, presetId: preset?.id ?? "", presetName: preset?.name ?? "", timestamp: new Date().toISOString(), model: profile.model || "未知模型" });
+      outcome = "done";
       return true;
     } catch (error) {
       if (isAbortError(error))
         return false;
       logger11.error("提问失败", error);
+      outcome = "error";
+      failure = errorMessage(error);
       showToast(`提问失败：${errorMessage(error)}`, "error", { topicId, key: `qa:${topicId}`, onClick: (type) => focusTopic(topicId, "question", type) });
       throw error;
     } finally {
       running.delete(topicId);
       pending2.delete(topicId);
       notify2(topicId);
+      dispatch("aiTask", { kind: "question", topicId, state: outcome, message: failure || undefined });
     }
   }
   function turn(question, presetName, ...rest) {
@@ -13707,6 +14190,15 @@ ${content.text}`
     const box = h("div", { class: "ldpp-qa-box" }, menu, input, sendButton);
     const el = h("div", { class: `ldpp-qa ldpp-qa-${variant}` }, thread, h("div", { class: "ldpp-qa-composer" }, chips, box));
     const busy = () => running.has(topicId);
+    const cursor = new HistoryCursor(historyEntries);
+    const showEntry = (text) => {
+      if (text === null)
+        return false;
+      input.value = text;
+      input.dispatchEvent(new Event("input"));
+      input.setSelectionRange(text.length, text.length);
+      return true;
+    };
     const fill = (preset) => {
       chosen = preset;
       input.value = preset.prompt;
@@ -13750,6 +14242,9 @@ ${content.text}`
       if (!question || busy())
         return;
       failed = null;
+      if (settings11.store.inputHistory)
+        rememberQuestion(question, settings11.store.historyLimit);
+      cursor.reset();
       const typed = question === input.value.trim();
       if (typed) {
         input.value = "";
@@ -13784,8 +14279,15 @@ ${content.text}`
       } else if (event.key === "Escape" && !menu.hidden) {
         event.stopPropagation();
         menu.hidden = true;
+      } else if (settings11.store.inputHistory && menu.hidden && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        const shown = event.key === "ArrowUp" && onFirstLine(input) ? showEntry(cursor.older(input.value)) : event.key === "ArrowDown" && onLastLine(input) ? showEntry(cursor.newer()) : event.key === "Escape" ? showEntry(cursor.restore()) : false;
+        if (shown) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
       }
     });
+    input.addEventListener("beforeinput", () => cursor.reset());
     input.addEventListener("input", () => {
       if (input.value.trim())
         menu.hidden = true;
@@ -13826,7 +14328,7 @@ ${content.text}`
     tags: ["ai", "reading"],
     icon: QuestionIcon,
     enabledByDefault: true,
-    settings: settings9
+    settings: settings11
   });
 
   // src/plugins/topicSummary/view.ts
@@ -14079,7 +14581,7 @@ ${content.text}`
   }
 
   // src/plugins/topicSummary/index.ts
-  var settings10 = definePluginSettings({
+  var settings12 = definePluginSettings({
     prompts: {
       type: 6 /* CUSTOM */,
       default: DEFAULT_PROMPTS
@@ -14092,13 +14594,13 @@ ${content.text}`
       type: 5 /* COMPONENT */,
       description: "提示词",
       render: () => renderPromptEditor({
-        list: () => normalizePrompts(settings10.store.prompts),
+        list: () => normalizePrompts(settings12.store.prompts),
         save: (next) => {
-          settings10.store.prompts = next;
+          settings12.store.prompts = next;
         },
-        activeId: () => settings10.store.activePrompt,
+        activeId: () => settings12.store.activePrompt,
         setActive: (id) => {
-          settings10.store.activePrompt = id;
+          settings12.store.activePrompt = id;
         }
       })
     },
@@ -14157,24 +14659,24 @@ ${content.text}`
   var lines = (value) => value.split(`
 `).map((line) => line.trim()).filter(Boolean);
   function activePrompt() {
-    const prompts = normalizePrompts(settings10.store.prompts);
-    return prompts.find((prompt) => prompt.id === settings10.store.activePrompt) ?? prompts[0];
+    const prompts = normalizePrompts(settings12.store.prompts);
+    return prompts.find((prompt) => prompt.id === settings12.store.activePrompt) ?? prompts[0];
   }
   function sidebarOptions() {
     return {
-      position: settings10.store.sidebarPosition === "left" ? "left" : "right",
-      autoOpen: settings10.store.autoOpen
+      position: settings12.store.sidebarPosition === "left" ? "left" : "right",
+      autoOpen: settings12.store.autoOpen
     };
   }
   var startupTimer;
   function maybeAutoSummarize() {
     const { kind, topicId } = currentRoute();
-    if (kind !== "topic" || !topicId || !settings10.store.autoSummarize || hasSummary(topicId))
+    if (kind !== "topic" || !topicId || !settings12.store.autoSummarize || hasSummary(topicId))
       return;
     summarizeTopic(topicId, { mode: "auto" });
   }
   function onKeydown2(event) {
-    if (!settings10.store.hotkey || !event.altKey || event.ctrlKey || event.metaKey || event.code !== "KeyS")
+    if (!settings12.store.hotkey || !event.altKey || event.ctrlKey || event.metaKey || event.code !== "KeyS")
       return;
     if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable='true']"))
       return;
@@ -14188,12 +14690,12 @@ ${content.text}`
     tags: ["ai", "reading"],
     icon: SparkIcon,
     enabledByDefault: true,
-    settings: settings10,
+    settings: settings12,
     start() {
       configureEngine({
         prompt: activePrompt,
-        maxPosts: () => settings10.store.maxPosts,
-        filter: () => ({ enabled: settings10.store.stripFences, prefixes: lines(settings10.store.fencePrefixes), suffixes: lines(settings10.store.fenceSuffixes) })
+        maxPosts: () => settings12.store.maxPosts,
+        filter: () => ({ enabled: settings12.store.stripFences, prefixes: lines(settings12.store.fencePrefixes), suffixes: lines(settings12.store.fenceSuffixes) })
       });
       syncSidebar(sidebarOptions());
       startupTimer = setTimeout(maybeAutoSummarize, 0);
@@ -14276,8 +14778,8 @@ ${content.text}`
     for (const embed of node.querySelectorAll(EMBEDS))
       quiet(embed);
   }
-  var observer3 = null;
-  var listeners4 = null;
+  var observer4 = null;
+  var listeners5 = null;
   var disableAutoplay_default = definePlugin({
     name: "DisableAutoplay",
     displayName: "禁用视频自动播放",
@@ -14286,10 +14788,10 @@ ${content.text}`
     icon: VideoOffIcon,
     enabledByDefault: true,
     start() {
-      listeners4 = new AbortController;
+      listeners5 = new AbortController;
       for (const type of ["pointerdown", "keydown"])
-        window.addEventListener(type, onGesture, { capture: true, signal: listeners4.signal });
-      observer3 = new MutationObserver((mutations) => {
+        window.addEventListener(type, onGesture, { capture: true, signal: listeners5.signal });
+      observer4 = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
           if (mutation.type === "attributes")
             scan(mutation.target);
@@ -14298,16 +14800,90 @@ ${content.text}`
               scan(node);
         }
       });
-      observer3.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["src", "autoplay"] });
+      observer4.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["src", "autoplay"] });
       scan(document.documentElement);
     },
     stop() {
-      observer3?.disconnect();
-      observer3 = null;
-      listeners4?.abort();
-      listeners4 = null;
+      observer4?.disconnect();
+      observer4 = null;
+      listeners5?.abort();
+      listeners5 = null;
       gesture = null;
     }
+  });
+
+  // src/plugins/privacyBlur/index.ts
+  var STYLE = "privacyBlur";
+  var PARTS = {
+    headerAvatar: ".d-header .current-user img.avatar, .d-header .header-dropdown-toggle.current-user img",
+    badges: ".d-header .badge-notification, .d-header .unread-notifications, .d-header .unread-high-priority-notifications, .sidebar-section-link-content-badge, .sidebar-section-link-suffix.unread",
+    userMenu: ".user-menu .quick-access-panel li, .user-menu .panel-body-contents li",
+    messages: ".sidebar-section[data-section-name='messages'] .sidebar-section-content, .sidebar-section[data-section-name='user-messages'] .sidebar-section-content",
+    ownPosts: ".topic-post.current-user-post .topic-avatar img.avatar, .topic-post.current-user-post .names, .topic-post.current-user-post .post-avatar img.avatar"
+  };
+  var settings13 = definePluginSettings({
+    headerAvatar: { type: 2 /* BOOLEAN */, description: "模糊顶栏自己的头像。", default: true },
+    badges: { type: 2 /* BOOLEAN */, description: "模糊顶栏和侧栏的未读 / 通知数。", default: true },
+    userMenu: { type: 2 /* BOOLEAN */, description: "模糊用户菜单里的通知、私信、书签列表。", default: true },
+    messages: { type: 2 /* BOOLEAN */, description: "模糊侧栏的私信分区。", default: true },
+    ownPosts: { type: 2 /* BOOLEAN */, description: "模糊话题里自己楼层的头像和用户名。", default: false },
+    strength: { type: 4 /* SLIDER */, description: "模糊程度", min: 2, max: 16, step: 1, unit: "px", default: 6 }
+  });
+  function privacyCss(parts, strength) {
+    if (!parts.length)
+      return "";
+    const selectors = parts.map((part) => PARTS[part]).join(`,
+`);
+    const hovered = parts.flatMap((part) => PARTS[part].split(", ").map((selector) => `${selector}:hover`)).join(`,
+`);
+    return `${selectors} {
+    filter: blur(${strength}px) !important;
+    transition: filter 0.15s ease;
+}
+${hovered} {
+    filter: none !important;
+}`;
+  }
+  var active4 = false;
+  var paused = false;
+  var menuAdded = false;
+  function apply() {
+    const parts = Object.keys(PARTS).filter((part) => settings13.store[part]);
+    const css = active4 && !paused ? privacyCss(parts, settings13.store.strength) : "";
+    if (css)
+      registerStyle(STYLE, css);
+    else
+      unregisterStyle(STYLE);
+  }
+  function togglePause() {
+    if (!active4)
+      return;
+    paused = !paused;
+    apply();
+    showToast(paused ? "隐私打码已暂停，直到再次切换或刷新页面" : "隐私打码已恢复", "info", { key: "privacy-blur" });
+  }
+  var privacyBlur_default = definePlugin({
+    name: "PrivacyBlur",
+    displayName: "隐私打码",
+    description: "模糊自己的头像、未读数、用户菜单和私信等可识别信息，悬停时临时显示；脚本菜单可一键暂停（对照 Void++ StreamerMode）。",
+    tags: ["privacy"],
+    icon: EyeOffIcon,
+    enabledByDefault: false,
+    settings: settings13,
+    start() {
+      active4 = true;
+      paused = false;
+      if (!menuAdded) {
+        menuAdded = true;
+        gmMenu("\uD83D\uDE48 暂停 / 恢复隐私打码", togglePause);
+      }
+      apply();
+    },
+    stop() {
+      active4 = false;
+      apply();
+    },
+    onSettingsChange: apply
   });
 
   // ldpp-css:src/plugins/listSummary/styles.css
@@ -14418,7 +14994,7 @@ ${content.text}`
 `);
 
   // src/plugins/listSummary/index.ts
-  var settings11 = definePluginSettings({
+  var settings14 = definePluginSettings({
     singleExpand: {
       type: 2 /* BOOLEAN */,
       description: "只展开一个总结面板（打开新的会收起其他）。",
@@ -14529,7 +15105,7 @@ ${content.text}`
     panel.content = panel.view === "question" ? createQAPanel(topicId, { variant: "list" }) : createSummaryView(topicId, { variant: "list", onAsk: qaEnabled ? () => switchView(row, "question") : undefined });
     host.replaceChildren(h("div", {
       class: "ldpp-lsum",
-      style: { "--ldpp-lines": String(settings11.store.maxLines), "--ldpp-panel-width": `${settings11.store.widthPercent}%` }
+      style: { "--ldpp-lines": String(settings14.store.maxLines), "--ldpp-panel-width": `${settings14.store.widthPercent}%` }
     }, h("div", { class: "ldpp-lsum-head" }, h("span", { class: "ldpp-lsum-title" }, panel.view === "question" ? "提问 / 追问" : "AI 总结"), panel.view === "summary" ? panel.content.toolbar : null, IconButton(CloseIcon(14), { title: "收起", onClick: () => close(topicId) })), panel.content.el));
     if (panel.view === "question")
       panel.content.focus();
@@ -14544,7 +15120,7 @@ ${content.text}`
     refreshButtons(row.id);
   }
   function openPanel2(row, view) {
-    if (settings11.store.singleExpand) {
+    if (settings14.store.singleExpand) {
       for (const id of Array.from(open2.keys()))
         if (id !== row.id)
           close(id);
@@ -14559,7 +15135,7 @@ ${content.text}`
     open2.set(row.id, panel);
     mount2(row.id, panel, row);
     refreshButtons(row.id);
-    if (view === "summary" && settings11.store.autoSummarizeOnOpen && !hasSummary(row.id) && !operationStatus(row.id))
+    if (view === "summary" && settings14.store.autoSummarizeOnOpen && !hasSummary(row.id) && !operationStatus(row.id))
       summarizeTopic(row.id);
   }
   function toggle(row, view) {
@@ -14587,7 +15163,7 @@ ${content.text}`
     icon: ListIcon,
     enabledByDefault: true,
     dependencies: ["TopicSummary"],
-    settings: settings11,
+    settings: settings14,
     start() {
       registerDecorator({ id: "list-question", order: 30, render: renderQuestionButton });
       registerDecorator({ id: "list-summary", order: 40, render: renderSummaryButton });
@@ -14609,8 +15185,8 @@ ${content.text}`
     },
     onSettingsChange() {
       for (const [topicId, panel] of open2) {
-        panel.host?.querySelector(".ldpp-lsum")?.style.setProperty("--ldpp-lines", String(settings11.store.maxLines));
-        panel.host?.querySelector(".ldpp-lsum")?.style.setProperty("--ldpp-panel-width", `${settings11.store.widthPercent}%`);
+        panel.host?.querySelector(".ldpp-lsum")?.style.setProperty("--ldpp-lines", String(settings14.store.maxLines));
+        panel.host?.querySelector(".ldpp-lsum")?.style.setProperty("--ldpp-panel-width", `${settings14.store.widthPercent}%`);
         refreshButtons(topicId);
       }
     },
@@ -14647,259 +15223,620 @@ ${content.text}`
     }
   });
 
-  // ldpp-css:src/plugins/createdTime/styles.css
-  registerStyle("createdTime", `/* The creation time sits in Discourse's own cell; while it is there the view count beside it is hidden, not removed
-   (Ember keeps updating it). Colours are the original script's bands by age. */
-.ldpp-created-time {
-    font-weight: 400;
-    white-space: nowrap;
+  // ldpp-css:src/plugins/recentTopics/styles.css
+  registerStyle("recentTopics", `.ldpp-recent-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgb(0 0 0 / 28%);
+    backdrop-filter: blur(2px);
 }
 
-.topic-list td.views:has(> .ldpp-created-time) > .number {
-    display: none;
+.ldpp-recent-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: min(56rem, 100%);
+    max-height: min(36rem, 90vh);
+    padding: 1rem;
+    border: 1px solid var(--ldpp-line);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--ldpp-bg) 88%, transparent);
+    backdrop-filter: blur(18px) saturate(1.4);
+    box-shadow: var(--ldpp-shadow);
 }
 
-.topic-list td.views:has(> .ldpp-created-time),
-.topic-list td.activity:has(> .ldpp-created-time) {
-    white-space: nowrap;
+.ldpp-recent-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem;
+    color: var(--ldpp-fg);
+    font-weight: 600;
 }
 
-.ldpp-created-time.is-day {
-    color: #45b5aa;
+.ldpp-recent-hint {
+    color: var(--ldpp-muted);
+    font-size: var(--font-down-1, 0.87em);
+    font-weight: normal;
 }
 
-.ldpp-created-time.is-week {
-    color: #66a586;
+.ldpp-recent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
+    gap: 0.6rem;
+    overflow-y: auto;
+    padding: 0.15rem;
 }
 
-.ldpp-created-time.is-month {
-    color: #cfa94a;
+.ldpp-recent-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-height: 6.5rem;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--ldpp-line);
+    border-radius: 10px;
+    background: var(--ldpp-bg);
+    color: var(--ldpp-fg);
+    text-align: left;
+    cursor: pointer;
 }
 
-.ldpp-created-time.is-quarter {
-    color: #3e8ed2;
+.ldpp-recent-card.is-selected {
+    border-color: var(--ldpp-accent);
+    box-shadow: 0 0 0 2px var(--ldpp-accent-soft);
 }
 
-.ldpp-created-time.is-old {
-    color: #ccc;
+.ldpp-recent-title {
+    display: -webkit-box;
+    overflow: hidden;
+    font-weight: 600;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
 }
 
-.ldpp-created-tomb {
-    width: 1.5em;
-    height: 1.5em;
-    margin-right: 0.3em;
-    vertical-align: bottom;
+.ldpp-recent-meta {
+    color: var(--ldpp-muted);
+    font-size: var(--font-down-1, 0.87em);
+}
+
+.ldpp-recent-summary {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--ldpp-flat-text);
+    font-size: var(--font-down-1, 0.87em);
+    line-height: 1.45;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
 }
 `);
 
-  // src/plugins/createdTime/index.ts
-  var TIME = "ldpp-created-time";
-  var ACTIVITY_CELL = "td.activity[title], td.age[title]";
-  var DAY2 = 24 * 60 * 60 * 1000;
-  var HEADER_STYLE = "createdTime-header";
-  var VIEWS_HEADER = ".topic-list th.views";
-  var SORTED = "ldpp-created-sorted";
-  var ASCENDING = "ldpp-created-ascending";
-  var HEADER_CSS = `${VIEWS_HEADER} > button {
-    font-size: 0 !important;
-}
-${VIEWS_HEADER} > button::before {
-    content: "创建时间";
-    font-size: var(--font-down-1-rem, 0.8706rem);
-}
-html.${SORTED} ${VIEWS_HEADER} > button::after {
-    content: "";
-    display: inline-block;
-    width: 0.32rem;
-    height: 0.32rem;
-    margin-inline-start: 0.4rem;
-    border-right: 0.12rem solid currentColor;
-    border-bottom: 0.12rem solid currentColor;
-    vertical-align: 0.22rem;
-    transform: rotate(45deg);
-}
-html.${SORTED}.${ASCENDING} ${VIEWS_HEADER} > button::after {
-    vertical-align: 0.05rem;
-    transform: rotate(-135deg);
-}`;
-  var settings12 = definePluginSettings({
-    position: {
-      type: 3 /* SELECT */,
-      description: "显示位置",
-      options: [
-        { label: "替换浏览量", value: "views", default: true },
-        { label: "追加在活动时间后", value: "activity" }
-      ]
+  // src/plugins/recentTopics/model.ts
+  var MAX_STORED = 50;
+  function normalizeRecent(raw) {
+    if (!Array.isArray(raw))
+      return [];
+    const seen = new Set;
+    const out = [];
+    for (const item of raw) {
+      if (!isObject(item))
+        continue;
+      const id = String(item.id ?? "").trim();
+      if (!/^\d+$/.test(id) || seen.has(id))
+        continue;
+      seen.add(id);
+      out.push({
+        id,
+        title: typeof item.title === "string" ? item.title : "",
+        floor: Number.isInteger(item.floor) && item.floor > 0 ? item.floor : 0,
+        visitedAt: Number.isFinite(item.visitedAt) ? item.visitedAt : 0
+      });
+    }
+    return out.toSorted((a, b) => b.visitedAt - a.visitedAt).slice(0, MAX_STORED);
+  }
+  function touchRecent(list, visit, now = Date.now()) {
+    const old = list.find((item) => item.id === visit.id);
+    const next = {
+      id: visit.id,
+      title: visit.title || old?.title || "",
+      floor: visit.floor || old?.floor || 0,
+      visitedAt: now
+    };
+    return [next, ...list.filter((item) => item.id !== visit.id)].slice(0, MAX_STORED);
+  }
+  function patchRecent(list, id, patch) {
+    let changed = false;
+    const next = list.map((item) => {
+      if (item.id !== id)
+        return item;
+      const title = patch.title || item.title;
+      const floor = patch.floor || item.floor;
+      if (title === item.title && floor === item.floor)
+        return item;
+      changed = true;
+      return { ...item, title, floor };
+    });
+    return changed ? next : [...list];
+  }
+  function floorOf(path) {
+    const match = path.match(/^\/t\/(?:[^/]+\/)?\d+\/(\d+)\/?$/);
+    return match ? Number(match[1]) : 0;
+  }
+  function initialIndex(list, currentId) {
+    if (list.length < 2)
+      return 0;
+    return list[0].id === currentId ? 1 : 0;
+  }
+  function wrapIndex(index, length) {
+    return length ? (index % length + length) % length : 0;
+  }
+  function timeAgo(time, now = Date.now()) {
+    const seconds = Math.max(0, Math.round((now - time) / 1000));
+    if (seconds < 60)
+      return "刚刚";
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 60)
+      return `${minutes} 分钟前`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24)
+      return `${hours} 小时前`;
+    const days = Math.round(hours / 24);
+    if (days < 30)
+      return `${days} 天前`;
+    return new Date(time).toLocaleDateString();
+  }
+  function summaryExcerpt(summary, max = 90) {
+    const text = summary.replace(/<[^>]+>/g, " ").replace(/```[\s\S]*?```/g, " ").replace(/!\[[^\]]*\]\([^)]*\)/g, " ").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/^#{1,6}\s+/gm, "").replace(/[*_`>~|-]+/g, " ").replace(/\s+/g, " ").trim();
+    return text.length > max ? `${text.slice(0, max)}…` : text;
+  }
+
+  // src/plugins/recentTopics/index.ts
+  var KEY2 = "LDPP.recentTopics";
+  var settings15 = definePluginSettings({
+    maxItems: {
+      type: 4 /* SLIDER */,
+      description: "切换器里最多显示几个话题。",
+      min: 4,
+      max: 30,
+      step: 1,
+      default: 12
+    },
+    showSummary: {
+      type: 2 /* BOOLEAN */,
+      description: "卡片上显示 AI 总结的开头（如果有）。",
+      default: true
+    },
+    releaseToOpen: {
+      type: 2 /* BOOLEAN */,
+      description: "松开 Ctrl 立即打开选中的话题（关闭后需按 Enter 或点击）。",
+      default: true
+    },
+    clear: {
+      type: 5 /* COMPONENT */,
+      description: "清空最近话题",
+      render: () => Button("清空最近话题", { small: true, onClick: () => {
+        save([]);
+        showToast("最近话题已清空", "success");
+      } })
     }
   });
-  var position = () => settings12.store.position === "activity" ? "activity" : "views";
-  var MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
-  function parseCreated(title) {
-    const line = title.split(`
-`)[0] ?? "";
-    const text = line.replace(/^[^:：]*[:：]\s*/, "").trim();
-    const zh = text.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*(\d{1,2}):(\d{2})/);
-    if (zh)
-      return new Date(+zh[1], +zh[2] - 1, +zh[3], +zh[4], +zh[5]).getTime();
-    const en = text.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4}),?\s+(\d{1,2}):(\d{2})\s*([ap]m)?/i);
-    if (en) {
-      let hours = +en[4] % 12;
-      if (en[6]?.toLowerCase() === "pm")
-        hours += 12;
-      else if (!en[6])
-        hours = +en[4];
-      return new Date(+en[3], MONTHS[en[1].toLowerCase()], +en[2], hours, +en[5]).getTime();
+  var load = () => normalizeRecent(gmGet(KEY2, []));
+  var save = (list) => gmSet(KEY2, list);
+  function pageTitle2() {
+    return document.querySelector("#topic-title .fancy-title, .title-wrapper .fancy-title")?.textContent?.trim() ?? "";
+  }
+  var titleTimer;
+  function recordVisit() {
+    const route = currentRoute();
+    if (route.kind !== "topic" || !route.topicId)
+      return;
+    const id = route.topicId;
+    save(touchRecent(load(), { id, title: cachedTopicTitle(id), floor: floorOf(location.pathname) }));
+    clearTimeout(titleTimer);
+    titleTimer = setTimeout(() => {
+      const title = pageTitle2() || cachedTopicTitle(id);
+      if (title && currentRoute().topicId === id)
+        save(patchRecent(load(), id, { title }));
+    }, 1500);
+  }
+  var floorTimer;
+  function onScroll() {
+    floorTimer ??= setTimeout(() => {
+      floorTimer = undefined;
+      const route = currentRoute();
+      const floor = floorOf(location.pathname);
+      if (route.topicId && floor)
+        save(patchRecent(load(), route.topicId, { floor }));
+    }, 1000);
+  }
+  var overlay = null;
+  var items = [];
+  var selected = 0;
+  var holding = false;
+  function card(item, index, currentId) {
+    const title = h("div", { class: "ldpp-recent-title" }, item.title || `话题 #${item.id}`);
+    if (!item.title) {
+      resolveTopicTitle(item.id).then((text) => {
+        if (!text)
+          return;
+        title.textContent = text;
+        save(patchRecent(load(), item.id, { title: text }));
+      });
     }
-    const parsed = Date.parse(text);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  var pad = (value) => String(value).padStart(2, "0");
-  function formatCreated(time, now = Date.now()) {
-    const date = new Date(time);
-    const today = new Date(now);
-    const clock = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-    if (date.toDateString() === today.toDateString())
-      return clock;
-    const day = `${pad(date.getMonth() + 1)}/${pad(date.getDate())}`;
-    return date.getFullYear() === today.getFullYear() ? `${day} ${clock}` : `${date.getFullYear()}/${day} ${clock}`;
-  }
-  function ageOf(time, now = Date.now()) {
-    const age = now - time;
-    if (age < DAY2)
-      return "day";
-    if (age < 7 * DAY2)
-      return "week";
-    if (age < 30 * DAY2)
-      return "month";
-    if (age < 90 * DAY2)
-      return "quarter";
-    return "old";
-  }
-  var tombstone = () => {
-    const icon = svg("0 0 1024 1024", [["path", { fill: "#A51C30", d: "M916.992 813.44c11.008-44.032-9.856-53.632-9.856-53.632 7.168-23.552-12.8-46.592-12.8-46.592a72.448 72.448 0 0 0-12.032-34.816h-85.12V179.2a9.856 9.856 0 0 0-9.984-9.6h-54.144a9.856 9.856 0 0 1-9.472-7.168A204.8 204.8 0 0 0 524.8 14.208h-27.904a204.8 204.8 0 0 0-198.016 147.712 9.856 9.856 0 0 1-9.472 7.168h-51.968a10.496 10.496 0 0 0-10.752 10.368v499.2h-84.992v1.28a78.336 78.336 0 0 0-9.088 32.256s-22.656 23.296-15.36 46.72c0 0-20.736 9.856-9.344 53.504 0 0-66.176 11.776-49.408 193.536h83.072v0.768h740.608l86.528-0.896c14.72-181.376-51.712-192.384-51.712-192.384z" }]], 22);
-    icon.classList.add("ldpp-created-tomb");
-    return icon;
-  };
-  function fullDate(time) {
-    const date = new Date(time);
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  }
-  function show(row, where, now) {
-    const activity = row.el.querySelector(ACTIVITY_CELL);
-    const views = row.el.querySelector("td.views");
-    const time = activity ? parseCreated(activity.getAttribute("title") ?? "") : null;
-    const host = (where === "views" ? views : null) ?? activity;
-    for (const old of row.el.querySelectorAll(`.${TIME}`))
-      if (old.parentElement !== host || time === null)
-        old.remove();
-    if (!host || time === null)
-      return;
-    const inViews = host === views;
-    const age = ageOf(time, now);
-    const text = inViews ? formatCreated(time, now) : `（${formatCreated(time, now)}）`;
-    const count = inViews ? views?.querySelector(".number")?.getAttribute("title") : null;
-    const tip = count ? `创建于 ${fullDate(time)}
-${count}` : `创建于 ${fullDate(time)}`;
-    const key = `${text}|${age}|${tip}`;
-    let span = host.querySelector(`:scope > .${TIME}`);
-    if (span?.dataset.key === key)
-      return;
-    span ??= mark(h("span", { class: TIME }), "created-time");
-    span.className = `${TIME} is-${age}`;
-    span.dataset.key = key;
-    span.title = tip;
-    span.replaceChildren(...age === "old" ? [tombstone(), text] : [text]);
-    if (span.parentElement !== host)
-      host.append(span);
-  }
-  function createdSortUrl(href) {
-    const url = new URL(href);
-    const ascending = url.searchParams.get("order") === "created" && url.searchParams.get("ascending") !== "true";
-    url.searchParams.set("ascending", String(ascending));
-    url.searchParams.set("order", "created");
-    return url.pathname + url.search + url.hash;
-  }
-  function syncSortState() {
-    const params = new URLSearchParams(location.search);
-    const sorted = active2 && position() === "views" && params.get("order") === "created";
-    document.documentElement.classList.toggle(SORTED, sorted);
-    document.documentElement.classList.toggle(ASCENDING, sorted && params.get("ascending") === "true");
-  }
-  function onHeaderClick(event) {
-    if (position() !== "views" || !(event.target instanceof Element) || !event.target.closest(VIEWS_HEADER))
-      return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    routeTo(createdSortUrl(location.href));
-  }
-  function labelHeaders() {
-    for (const button of document.querySelectorAll(`${VIEWS_HEADER} > button`)) {
-      if (position() === "views") {
-        button.title = "按创建时间排序";
-        button.setAttribute("aria-label", "创建时间");
-      } else if (button.title === "按创建时间排序") {
-        button.removeAttribute("title");
-        button.removeAttribute("aria-label");
+    const summary = settings15.store.showSummary ? Summaries.get(item.id)?.[0]?.summary : undefined;
+    const meta = [item.id === currentId ? "当前" : timeAgo(item.visitedAt), item.floor > 1 ? `读到 #${item.floor}` : ""].filter(Boolean).join(" · ");
+    return h("button", {
+      type: "button",
+      class: "ldpp-recent-card",
+      dataset: { index: String(index) },
+      attrs: { role: "option", "aria-selected": String(index === selected) },
+      on: {
+        click: () => openAt(index),
+        mousemove: () => {
+          if (selected !== index)
+            select2(index);
+        }
       }
+    }, title, h("div", { class: "ldpp-recent-meta" }, meta), summary ? h("div", { class: "ldpp-recent-summary" }, summaryExcerpt(summary)) : null);
+  }
+  function select2(index) {
+    selected = wrapIndex(index, items.length);
+    for (const el of overlay?.querySelectorAll(".ldpp-recent-card") ?? []) {
+      const on = Number(el.dataset.index) === selected;
+      el.classList.toggle("is-selected", on);
+      el.setAttribute("aria-selected", String(on));
+      if (on)
+        el.scrollIntoView({ block: "nearest" });
     }
   }
-  function applyHeader() {
-    if (active2 && position() === "views")
-      registerStyle(HEADER_STYLE, HEADER_CSS);
-    else
-      unregisterStyle(HEADER_STYLE);
-    labelHeaders();
-    syncSortState();
+  function openSwitcher() {
+    items = load().slice(0, settings15.store.maxItems);
+    if (!items.length) {
+      showToast("还没有最近打开的话题。", "info", { key: "recent-topics" });
+      return;
+    }
+    const currentId = currentRoute().topicId;
+    selected = initialIndex(items, currentId);
+    const grid = h("div", { class: "ldpp-recent-grid", attrs: { role: "listbox", "aria-label": "最近话题" } }, ...items.map((item, index) => card(item, index, currentId)));
+    overlay = mark(h("div", {
+      class: "ldpp-recent-overlay",
+      on: { click: (event) => {
+        if (event.target === overlay)
+          closeSwitcher();
+      } }
+    }, h("div", { class: "ldpp-recent-panel" }, h("div", { class: "ldpp-recent-head" }, "最近话题", h("span", { class: "ldpp-recent-hint" }, "按住 Ctrl 再按 ` 切换 · Enter 打开 · Esc 关闭")), grid)), "recent-topics");
+    document.body.append(overlay);
+    select2(selected);
   }
-  function showCreatedTimes(rows) {
-    const where = position();
-    const now = Date.now();
-    for (const row of rows)
-      show(row, where, now);
-    if (active2) {
-      labelHeaders();
-      syncSortState();
+  function closeSwitcher() {
+    overlay?.remove();
+    overlay = null;
+    holding = false;
+  }
+  function openAt(index) {
+    const item = items[index];
+    closeSwitcher();
+    if (!item || item.id === currentRoute().topicId)
+      return;
+    routeTo(`/t/topic/${item.id}${item.floor > 1 ? `/${item.floor}` : ""}`);
+  }
+  function columns() {
+    const cards = overlay?.querySelectorAll(".ldpp-recent-card");
+    if (!cards?.length)
+      return 1;
+    const top = cards[0].offsetTop;
+    let count = 0;
+    for (const el of cards) {
+      if (el.offsetTop !== top)
+        break;
+      count++;
+    }
+    return Math.max(1, count);
+  }
+  function onKeyDown(event) {
+    if (event.isComposing)
+      return;
+    if (event.code === "Backquote" && event.ctrlKey && !event.altKey && !event.metaKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!overlay) {
+        openSwitcher();
+        holding = true;
+      } else {
+        select2(selected + (event.shiftKey ? -1 : 1));
+      }
+      return;
+    }
+    if (!overlay)
+      return;
+    const moves = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: columns(), ArrowUp: -columns(), Tab: event.shiftKey ? -1 : 1 };
+    if (event.key in moves) {
+      event.preventDefault();
+      event.stopPropagation();
+      select2(selected + moves[event.key]);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      event.stopPropagation();
+      openAt(selected);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      closeSwitcher();
     }
   }
-  var timer;
-  var active2 = false;
-  var listeners5 = null;
-  var createdTime_default = definePlugin({
-    name: "CreatedTime",
-    displayName: "话题列表显示创建时间",
-    description: "在话题列表里显示每个话题的创建时间，可替换浏览量或追加在活动时间后，按新旧着色，三个月以上的话题带墓碑标记（来自 linuxdo-scripts）。",
-    tags: ["topics"],
-    icon: ClockIcon,
+  function onKeyUp(event) {
+    if (!overlay || !holding || event.key !== "Control")
+      return;
+    holding = false;
+    if (settings15.store.releaseToOpen)
+      openAt(selected);
+  }
+  function onBlur() {
+    holding = false;
+  }
+  var listeners6 = null;
+  var recentTopics_default = definePlugin({
+    name: "RecentTopics",
+    displayName: "最近话题切换器",
+    description: "按 Ctrl + ` 弹出最近打开的话题卡片（标题、读到第几楼、总结开头），按住 Ctrl 连按 ` 切换，松开即打开（对照 Void++ RecentTopics）。",
+    tags: ["reading"],
+    icon: LayoutGridIcon,
     enabledByDefault: true,
-    settings: settings12,
+    settings: settings15,
     start() {
-      active2 = true;
-      listeners5 = new AbortController;
-      window.addEventListener("click", onHeaderClick, { capture: true, signal: listeners5.signal });
-      applyHeader();
-      registerProcessor({ id: "created-time", run: showCreatedTimes });
-      timer = setInterval(() => {
-        if (document.visibilityState === "visible")
-          showCreatedTimes(getRows());
-      }, 60000);
+      listeners6 = new AbortController;
+      const { signal } = listeners6;
+      window.addEventListener("keydown", onKeyDown, { capture: true, signal });
+      window.addEventListener("keyup", onKeyUp, { capture: true, signal });
+      window.addEventListener("blur", onBlur, { signal });
+      window.addEventListener("scroll", onScroll, { passive: true, signal });
+      recordVisit();
     },
     stop() {
-      active2 = false;
-      listeners5?.abort();
-      listeners5 = null;
-      applyHeader();
-      unregisterProcessor("created-time");
-      clearInterval(timer);
-      timer = undefined;
-      for (const span of document.querySelectorAll(`.${TIME}`))
-        span.remove();
-    },
-    onSettingsChange() {
-      applyHeader();
-      showCreatedTimes(getRows());
+      listeners6?.abort();
+      listeners6 = null;
+      clearTimeout(titleTimer);
+      clearTimeout(floorTimer);
+      floorTimer = undefined;
+      closeSwitcher();
     },
     events: {
-      navigate: syncSortState
+      navigate() {
+        closeSwitcher();
+        recordVisit();
+      }
+    }
+  });
+
+  // src/plugins/completionAlert/index.ts
+  var logger12 = new Logger("CompletionAlert", "#a6e3a1");
+  var DOT_COLOR = { running: "#3b82f6", done: "#22c55e", error: "#ef4444" };
+  function previewSound() {
+    playSound();
+  }
+  var settings16 = definePluginSettings({
+    sound: {
+      type: 2 /* BOOLEAN */,
+      description: "完成或失败时播放提示音。",
+      default: true
+    },
+    soundUrl: {
+      type: 0 /* STRING */,
+      description: "自定义提示音地址（留空使用内置提示音）。",
+      placeholder: "https://example.com/done.mp3",
+      default: ""
+    },
+    preview: {
+      type: 5 /* COMPONENT */,
+      description: "试听",
+      render: () => Button("试听提示音", { small: true, onClick: previewSound })
+    },
+    systemNotification: {
+      type: 2 /* BOOLEAN */,
+      description: "显示浏览器系统通知（首次开启时浏览器会询问权限）。",
+      default: false,
+      onChange: (value) => {
+        if (value)
+          requestPermission();
+      }
+    },
+    onlyHidden: {
+      type: 2 /* BOOLEAN */,
+      description: "只在标签页处于后台时提醒。",
+      default: true
+    },
+    favicon: {
+      type: 2 /* BOOLEAN */,
+      description: "在标签页图标上显示状态圆点：进行中蓝色，后台完成绿色，失败红色。",
+      default: true
+    }
+  });
+  async function requestPermission() {
+    if (typeof Notification === "undefined") {
+      showToast("这个浏览器不支持系统通知。", "warning", { key: "completion-alert" });
+      return false;
+    }
+    if (Notification.permission === "granted")
+      return true;
+    if (Notification.permission === "denied") {
+      showToast("浏览器已禁止 linux.do 的通知，请在站点设置里允许后再试。", "warning", { key: "completion-alert" });
+      return false;
+    }
+    return await Notification.requestPermission() === "granted";
+  }
+  var audio = null;
+  function chime() {
+    const Context = window.AudioContext ?? window.webkitAudioContext;
+    if (!Context)
+      return;
+    audio ??= new Context;
+    audio.resume();
+    const start = audio.currentTime + 0.02;
+    for (const [index, frequency] of [880, 1318.5].entries()) {
+      const at = start + index * 0.14;
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = "sine";
+      osc.frequency.value = frequency;
+      gain.gain.setValueAtTime(0, at);
+      gain.gain.linearRampToValueAtTime(0.18, at + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, at + 0.45);
+      osc.connect(gain).connect(audio.destination);
+      osc.start(at);
+      osc.stop(at + 0.5);
+    }
+  }
+  async function playSound() {
+    const url = settings16.store.soundUrl.trim();
+    try {
+      if (url)
+        await new Audio(url).play();
+      else
+        chime();
+    } catch (error) {
+      logger12.warn("提示音播放失败", error);
+    }
+  }
+  var KIND_LABEL = { summary: "总结", question: "提问" };
+  async function systemNotify(kind, topicId, ok, message) {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted")
+      return;
+    const title = await resolveTopicTitle(topicId).catch(() => "") || `话题 #${topicId}`;
+    const notification = new Notification(ok ? `${KIND_LABEL[kind]}完成` : `${KIND_LABEL[kind]}失败`, {
+      body: ok ? title : `${title}
+${message ?? ""}`.trim(),
+      tag: `ldpp-${kind}-${topicId}`,
+      icon: faviconLink()?.href
+    });
+    notification.addEventListener("click", () => {
+      window.focus();
+      focusTopic(topicId, kind, ok ? "success" : "error");
+      notification.close();
+    });
+  }
+  var running2 = new Set;
+  var finished = null;
+  var originalHref = null;
+  var baseImage = null;
+  var shownState = "idle";
+  function tabState(runningCount, result) {
+    if (runningCount > 0)
+      return "running";
+    return result ?? "idle";
+  }
+  function faviconLink() {
+    return document.querySelector("link[rel~='icon']");
+  }
+  function loadBase(href) {
+    if (baseImage?.dataset.src === href)
+      return Promise.resolve(baseImage);
+    return new Promise((resolve) => {
+      const img = new Image;
+      img.crossOrigin = "anonymous";
+      img.dataset.src = href;
+      img.addEventListener("load", () => {
+        baseImage = img;
+        resolve(img);
+      });
+      img.addEventListener("error", () => resolve(null));
+      img.src = href;
+    });
+  }
+  function drawIcon(base, state) {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 64;
+    const ctx = canvas.getContext("2d");
+    if (!ctx)
+      return null;
+    if (base)
+      ctx.drawImage(base, 0, 0, 64, 64);
+    ctx.beginPath();
+    ctx.arc(46, 46, 16, 0, Math.PI * 2);
+    ctx.fillStyle = DOT_COLOR[state];
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "#fff";
+    ctx.stroke();
+    try {
+      return canvas.toDataURL("image/png");
+    } catch {
+      return base ? drawIcon(null, state) : null;
+    }
+  }
+  async function renderFavicon() {
+    const state = settings16.store.favicon && active5 ? tabState(running2.size, finished) : "idle";
+    if (state === shownState)
+      return;
+    shownState = state;
+    const link = faviconLink();
+    if (!link)
+      return;
+    if (state === "idle") {
+      if (originalHref !== null)
+        link.href = originalHref;
+      originalHref = null;
+      return;
+    }
+    originalHref ??= link.href;
+    const href = drawIcon(await loadBase(originalHref), state);
+    if (href && shownState === state)
+      link.href = href;
+  }
+  function onVisible() {
+    if (document.visibilityState !== "visible" || !finished)
+      return;
+    finished = null;
+    renderFavicon();
+  }
+  var active5 = false;
+  var completionAlert_default = definePlugin({
+    name: "CompletionAlert",
+    displayName: "后台完成提醒",
+    description: "AI 总结或提问完成、失败时播放提示音，可选弹出系统通知，标签页图标显示进度（对照 Void++ ResponseNotification 与 ChatStateFavicons）。",
+    tags: ["ai"],
+    icon: BellIcon,
+    enabledByDefault: true,
+    settings: settings16,
+    start() {
+      active5 = true;
+      document.addEventListener("visibilitychange", onVisible);
+    },
+    stop() {
+      active5 = false;
+      running2.clear();
+      finished = null;
+      document.removeEventListener("visibilitychange", onVisible);
+      renderFavicon();
+    },
+    onSettingsChange() {
+      renderFavicon();
+    },
+    events: {
+      aiTask({ kind, topicId, state, message }) {
+        const key = `${kind}:${topicId}`;
+        if (state === "start") {
+          running2.add(key);
+          renderFavicon();
+          return;
+        }
+        running2.delete(key);
+        const hidden = document.visibilityState === "hidden";
+        if (state !== "cancel" && hidden)
+          finished = state === "error" || finished === "error" ? "error" : "done";
+        renderFavicon();
+        if (state === "cancel" || settings16.store.onlyHidden && !hidden)
+          return;
+        if (settings16.store.sound)
+          playSound();
+        if (settings16.store.systemNotification)
+          systemNotify(kind, topicId, state === "done", message);
+      }
     }
   });
 
@@ -15332,12 +16269,12 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   var describeFixes = (fixes) => fixes.map((fix) => `${fix.from}→${fix.to}`).join("、");
 
   // src/plugins/deArrow/index.ts
-  var logger12 = new Logger("DeArrow", "#f5c2e7");
+  var logger13 = new Logger("DeArrow", "#f5c2e7");
   var AUTO_CONCURRENCY = 2;
   var DRAIN_DELAY_MS = 300;
   var FIX_HIGHLIGHT = "ldpp-title-fix";
   var profileOptions = () => [{ label: "跟随默认 AI 配置", value: "" }, ...profileChoices()];
-  var settings13 = definePluginSettings({
+  var settings17 = definePluginSettings({
     autoRewrite: {
       type: 2 /* BOOLEAN */,
       description: "判定为标题党后自动读取首帖并改写标题（关闭时可点击 ✦ 按钮手动改写）。",
@@ -15417,7 +16354,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   var fixTimer = null;
   var fixDraining = false;
   function inScope() {
-    scopeRegex ??= compileScope(checkScope(settings13.store.scope).rules);
+    scopeRegex ??= compileScope(checkScope(settings17.store.scope).rules);
     return scopeMatches(scopeRegex, location.href);
   }
   function stateFor(topicId, title) {
@@ -15428,7 +16365,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     return stateFor(topicId, title) ?? { originalTitle: title, updatedAt: "" };
   }
   function shownFixes(state) {
-    return settings13.store.fixTypos && state && !state.rewrittenTitle ? state.fixes ?? [] : [];
+    return settings17.store.fixTypos && state && !state.rewrittenTitle ? state.fixes ?? [] : [];
   }
   function errorFor(topicId, title) {
     const error = errors2.get(topicId);
@@ -15541,8 +16478,8 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     }, DRAIN_DELAY_MS);
   }
   async function judgeBatch(batch) {
-    const profile = getProfile(String(settings13.store.judgeProfile ?? "") || undefined);
-    const text = await chatWithRetry(profile, buildJudgeMessages(settings13.store.judgePrompt, batch));
+    const profile = getProfile(String(settings17.store.judgeProfile ?? "") || undefined);
+    const text = await chatWithRetry(profile, buildJudgeMessages(settings17.store.judgePrompt, batch));
     const results = new Map(parseJudge(text).map((result) => [result.topicId, result]));
     const now = new Date().toISOString();
     const updates = {};
@@ -15588,7 +16525,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
           await run;
           closeToast("dearrow-judge");
         } catch (error) {
-          logger12.warn("判断失败", error);
+          logger13.warn("判断失败", error);
           for (const item of batch)
             errors2.set(item.topicId, { kind: "judge", message: errorMessage(error), title: item.title });
           if (!(error instanceof AIError && (error.code === "NO_KEY" || error.code === "NO_PROFILE")))
@@ -15617,8 +16554,8 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     }, DRAIN_DELAY_MS);
   }
   async function fixBatch(batch) {
-    const profile = getProfile(String(settings13.store.judgeProfile ?? "") || undefined);
-    const found = parseFixes(await chatWithRetry(profile, buildFixMessages(settings13.store.fixPrompt, batch)));
+    const profile = getProfile(String(settings17.store.judgeProfile ?? "") || undefined);
+    const found = parseFixes(await chatWithRetry(profile, buildFixMessages(settings17.store.fixPrompt, batch)));
     const now = new Date().toISOString();
     const updates = {};
     for (const input of batch) {
@@ -15636,7 +16573,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       return;
     fixDraining = true;
     try {
-      while (fixQueue.size && isPluginEnabled("DeArrow") && settings13.store.fixTypos) {
+      while (fixQueue.size && isPluginEnabled("DeArrow") && settings17.store.fixTypos) {
         const picked = Array.from(fixQueue.values()).slice(0, FIX_BATCH);
         for (const item of picked) {
           fixQueue.delete(item.topicId);
@@ -15653,7 +16590,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
           await fixBatch(batch);
           closeToast("dearrow-fix");
         } catch (error) {
-          logger12.warn("错别字修正失败", error);
+          logger13.warn("错别字修正失败", error);
           for (const item of batch)
             fixFailed.set(item.topicId, item.title);
           if (!(error instanceof AIError && (error.code === "NO_KEY" || error.code === "NO_PROFILE")))
@@ -15696,7 +16633,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
         await judgeBatch([input]);
       if (automatic && stateFor(topicId, title)?.verdict !== true)
         return;
-      const profile = requireProfile(getProfile(String(settings13.store.rewriteProfile ?? "") || undefined));
+      const profile = requireProfile(getProfile(String(settings17.store.rewriteProfile ?? "") || undefined));
       setPhase("正在读取首帖…");
       const content = await buildTopicContent(topicId, {
         firstPostOnly: true,
@@ -15709,7 +16646,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
         throw new Error(profile.imageInput ? "首帖只有图片，且图片准备失败" : "首帖只有图片，请在改写所用的 AI 配置中开启图片输入");
       }
       setPhase("正在改写标题…");
-      const messages = buildRewriteMessages(settings13.store.rewritePrompt, title, content.text, images.length);
+      const messages = buildRewriteMessages(settings17.store.rewritePrompt, title, content.text, images.length);
       messages[1].content = userContent(messages[1].content, images);
       const rewritten = parseRewrite(await chatWithRetry(profile, messages));
       const current = DeArrowStates.get(topicId);
@@ -15719,7 +16656,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       DeArrowStates.set(topicId, { ...baseState(topicId, title), rewrittenTitle: rewritten, rewriteModel: profile.model, rewrittenAt: now, updatedAt: now });
       closeToast(`dearrow:${topicId}`);
     } catch (error) {
-      logger12.warn(`改写话题 ${topicId} 失败`, error);
+      logger13.warn(`改写话题 ${topicId} 失败`, error);
       errors2.set(topicId, { kind: "rewrite", message: errorMessage(error), title });
       if (!automatic)
         showToast(`DeArrow 改写失败：${errorMessage(error)}`, "error", { topicId, key: `dearrow:${topicId}`, onClick: (type) => focusTopic(topicId, "locate", type) });
@@ -15784,14 +16721,14 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       } else if (marked2.delete(row.id)) {
         setTitleMark(row.id, null);
       }
-      if (automatic && !row.hidden && settings13.store.fixTypos && !state?.rewrittenTitle && !state?.fixCheckedAt && !fixing.has(row.id) && fixFailed.get(row.id) !== row.originalTitle && !heldElsewhere("fix", row.id)) {
+      if (automatic && !row.hidden && settings17.store.fixTypos && !state?.rewrittenTitle && !state?.fixCheckedAt && !fixing.has(row.id) && fixFailed.get(row.id) !== row.originalTitle && !heldElsewhere("fix", row.id)) {
         fixQueue.set(row.id, { topicId: row.id, title: row.originalTitle });
       }
       if (!automatic || row.hidden || errorFor(row.id, row.originalTitle))
         continue;
       if (typeof state?.verdict !== "boolean" && !judging.has(row.id) && !rewriting.has(row.id) && !heldElsewhere("judge", row.id)) {
         judgeQueue.set(row.id, { topicId: row.id, title: row.originalTitle });
-      } else if (settings13.store.autoRewrite && state?.verdict === true && !state.rewrittenTitle && !rewriting.has(row.id) && !heldElsewhere("rewrite", row.id) && !autoQueue.some((item) => item.topicId === row.id)) {
+      } else if (settings17.store.autoRewrite && state?.verdict === true && !state.rewrittenTitle && !rewriting.has(row.id) && !heldElsewhere("rewrite", row.id) && !autoQueue.some((item) => item.topicId === row.id)) {
         autoQueue.push({ topicId: row.id, title: row.originalTitle });
       }
     }
@@ -15807,7 +16744,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     description: "在作用范围内的话题列表里自动用 AI 判断标题党，并根据首帖改写成具体中立的标题；其他列表也显示按钮和已改写的标题，可手动改写。还可修正标题里的错别字，改过的字带点状下划线。悬停 ✦ 按钮可临时查看原标题。改写和修正只影响显示，屏蔽规则始终匹配原标题。",
     tags: ["ai", "topics"],
     icon: DeArrowIcon,
-    settings: settings13,
+    settings: settings17,
     start() {
       scopeRegex = null;
       registerDecorator({ id: "dearrow", order: 20, render: renderButton2 });
@@ -15832,9 +16769,9 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     },
     onSettingsChange() {
       scopeRegex = null;
-      if (!settings13.store.autoRewrite)
+      if (!settings17.store.autoRewrite)
         autoQueue.length = 0;
-      if (!settings13.store.fixTypos)
+      if (!settings17.store.fixTypos)
         fixQueue.clear();
       schedule();
     },
@@ -15849,7 +16786,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   });
 
   // src/plugins/posterAvatars/index.ts
-  var STYLE = "posterAvatars-layout";
+  var STYLE2 = "posterAvatars-layout";
   var AVATARS = "td.posters.topic-list-data > a:first-child > img, td.posters.topic-list-data > a.latest > img";
   var ORIGINAL = "data-ldpp-avatar-src";
   var AVATAR_CSS = `.topic-list td.topic-list-data.posters {
@@ -15900,12 +16837,12 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     enabledByDefault: true,
     startAt: "Init" /* Init */,
     start() {
-      registerStyle(STYLE, AVATAR_CSS);
+      registerStyle(STYLE2, AVATAR_CSS);
       registerProcessor({ id: "poster-avatars", run: enlargeAvatars });
     },
     stop() {
       unregisterProcessor("poster-avatars");
-      unregisterStyle(STYLE);
+      unregisterStyle(STYLE2);
       restoreAvatars();
     }
   });
@@ -16202,22 +17139,22 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   }
 
   // src/plugins/noWatermark/index.ts
-  var STYLE2 = "no-watermark";
+  var STYLE3 = "no-watermark";
   var FULL_SCAN_DELAY_MS = 400;
   var SAFETY_SCAN_MS = 20000;
   var QUICK_SCAN_LIMIT = 400;
-  var logger13 = new Logger("NoWatermark", "#a6e3a1");
+  var logger14 = new Logger("NoWatermark", "#a6e3a1");
   var findings = [];
   var lastScan = null;
   var revealing = false;
   var notified = false;
-  var observer4 = null;
+  var observer5 = null;
   var fullTimer = null;
   var safetyTimer = null;
   var frame3 = 0;
   var pending3 = new Set;
   var refreshView = null;
-  var settings14 = definePluginSettings({
+  var settings18 = definePluginSettings({
     notify: {
       type: 2 /* BOOLEAN */,
       description: "发现并隐藏水印时提示一次",
@@ -16232,15 +17169,15 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   var sameFinding = (a, b) => a.el === b.el && a.pseudo === b.pseudo && a.part === b.part;
   function writeStyle() {
     findings = findings.filter((finding) => finding.el.isConnected);
-    registerStyle(STYLE2, hidingCss(findings));
+    registerStyle(STYLE3, hidingCss(findings));
     if (revealing)
-      disableStyle(STYLE2);
+      disableStyle(STYLE3);
     refreshView?.();
   }
   function report2(fresh) {
     for (const finding of fresh)
-      logger13.info(`已隐藏 ${describe(finding.el)}${finding.pseudo}：${finding.reasons.join("、")}`);
-    if (!fresh.length || notified || !settings14.store.notify)
+      logger14.info(`已隐藏 ${describe(finding.el)}${finding.pseudo}：${finding.reasons.join("、")}`);
+    if (!fresh.length || notified || !settings18.store.notify)
       return;
     notified = true;
     showToast(`已隐藏 ${findings.length} 处疑似水印，截图里不会出现（LD++ 设置 → 去除隐藏水印 → 本页检测）`, "info", { key: "no-watermark" });
@@ -16255,11 +17192,11 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   function measured(measure) {
     if (!findings.length || revealing)
       return measure();
-    disableStyle(STYLE2);
+    disableStyle(STYLE3);
     try {
       return measure();
     } finally {
-      enableStyle(STYLE2);
+      enableStyle(STYLE3);
     }
   }
   function fullScan() {
@@ -16321,7 +17258,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   var isStyleSheet = (node) => node instanceof Element && node.matches("style, link[rel~='stylesheet']");
   var OBSERVE = { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"] };
   function watchRoot(root) {
-    observer4?.observe(root, OBSERVE);
+    observer5?.observe(root, OBSERVE);
     queue(root.host);
   }
   function onMutations(records) {
@@ -16349,9 +17286,9 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   function setRevealing(value) {
     revealing = value;
     if (value)
-      disableStyle(STYLE2);
+      disableStyle(STYLE3);
     else
-      enableStyle(STYLE2);
+      enableStyle(STYLE3);
   }
   function renderReport() {
     const root = h("div", { class: "ldpp-nwm-report" });
@@ -16376,14 +17313,14 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     name: "NoWatermark",
     displayName: "去除隐藏水印",
     description: "找出页面上与账号关联的隐藏水印（铺满屏幕的半透明用户名、平铺的水印图、透明画布等）并用样式藏起来，截图里就不会带上；不删除、不改动网页自己的元素。烧进图片里的水印和浏览器指纹不在此列。",
-    tags: ["reading"],
+    tags: ["reading", "privacy"],
     icon: EraserIcon,
     enabledByDefault: true,
     startAt: "Init" /* Init */,
-    settings: settings14,
+    settings: settings18,
     start() {
-      observer4 = new MutationObserver(onMutations);
-      observer4.observe(document.documentElement, OBSERVE);
+      observer5 = new MutationObserver(onMutations);
+      observer5.observe(document.documentElement, OBSERVE);
       hookShadowRoots(watchRoot);
       scheduleFull(0);
       safetyTimer = setInterval(() => {
@@ -16393,8 +17330,8 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       }, SAFETY_SCAN_MS);
     },
     stop() {
-      observer4?.disconnect();
-      observer4 = null;
+      observer5?.disconnect();
+      observer5 = null;
       unhookShadowRoots();
       if (fullTimer)
         clearTimeout(fullTimer);
@@ -16404,7 +17341,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       pending3.clear();
       findings = [];
       revealing = false;
-      unregisterStyle(STYLE2);
+      unregisterStyle(STYLE3);
       refreshView?.();
     },
     events: {
@@ -16415,9 +17352,465 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     }
   });
 
+  // ldpp-css:src/plugins/topicExport/styles.css
+  registerStyle("topicExport", `.ldpp-export-button svg {
+    margin-inline-end: 0.35em;
+}
+
+.ldpp-export-menu {
+    position: fixed;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    min-width: 9rem;
+    padding: 0.25rem;
+    border: 1px solid var(--ldpp-line);
+    border-radius: var(--ldpp-radius);
+    background: var(--ldpp-bg);
+    box-shadow: var(--ldpp-shadow);
+}
+
+.ldpp-export-item {
+    padding: 0.4rem 0.6rem;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--ldpp-fg);
+    text-align: left;
+    cursor: pointer;
+}
+
+.ldpp-export-item:hover,
+.ldpp-export-item:focus-visible {
+    background: var(--ldpp-soft);
+}
+`);
+
+  // src/plugins/topicExport/format.ts
+  var absolute = (href) => {
+    try {
+      return new URL(href, "https://linux.do/").href;
+    } catch {
+      return href;
+    }
+  };
+  var isEmoji = (img) => /\bemoji\b/.test(img.className);
+  function cookedToMarkdown(cooked) {
+    const doc = new DOMParser().parseFromString(`<!doctype html><body>${cooked}`, "text/html");
+    for (const el of Array.from(doc.querySelectorAll("script, style, .lightbox-wrapper .meta, .cooked-date + .relative-date")))
+      el.remove();
+    return blocks(doc.body, "").replace(/\n{3,}/g, `
+
+`).trim();
+  }
+  function inline2(node) {
+    if (node.nodeType === Node.TEXT_NODE)
+      return (node.nodeValue ?? "").replace(/\s+/g, " ");
+    if (node.nodeType !== Node.ELEMENT_NODE)
+      return "";
+    const el = node;
+    const inner = () => Array.from(el.childNodes).map(inline2).join("");
+    switch (el.tagName) {
+      case "BR":
+        return `
+`;
+      case "STRONG":
+      case "B":
+        return wrap(inner(), "**");
+      case "EM":
+      case "I":
+        return wrap(inner(), "*");
+      case "S":
+      case "DEL":
+      case "STRIKE":
+        return wrap(inner(), "~~");
+      case "CODE":
+        return codeSpan(el.textContent ?? "");
+      case "IMG": {
+        const img = el;
+        if (isEmoji(img))
+          return img.getAttribute("alt") ?? img.getAttribute("title") ?? "";
+        const lightbox = img.closest("a.lightbox")?.getAttribute("href");
+        const src = lightbox ?? img.getAttribute("data-orig-src") ?? img.getAttribute("src") ?? "";
+        return `![${(img.getAttribute("alt") ?? "").replace(/[[\]]/g, "")}](${absolute(src)})`;
+      }
+      case "A": {
+        if (el.classList.contains("lightbox"))
+          return inner();
+        const href = el.getAttribute("href");
+        const text = inner().trim();
+        if (!href)
+          return text;
+        if (el.classList.contains("mention") || el.classList.contains("hashtag-cooked"))
+          return text;
+        const url = absolute(href);
+        return !text || text === href || text === url ? url : `[${text}](${url})`;
+      }
+      default:
+        return inner();
+    }
+  }
+  function wrap(text, marker) {
+    const trimmed = text.trim();
+    return trimmed ? `${marker}${trimmed}${marker}` : "";
+  }
+  function codeSpan(text) {
+    const longest = Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
+    const fence = "`".repeat(longest + 1);
+    return longest ? `${fence} ${text} ${fence}` : `${fence}${text}${fence}`;
+  }
+  var BLOCK = new Set(["P", "DIV", "UL", "OL", "LI", "PRE", "BLOCKQUOTE", "ASIDE", "TABLE", "H1", "H2", "H3", "H4", "H5", "H6", "HR", "DETAILS", "SUMMARY", "FIGURE"]);
+  var prefixLines = (text, prefix) => text.split(`
+`).map((line) => line ? prefix + line : prefix.trimEnd()).join(`
+`);
+  function blocks(el, indent) {
+    const out = [];
+    let run = "";
+    const flushRun = () => {
+      const text = run.replace(/[ \t]*\n[ \t]*/g, `
+`).trim();
+      if (text)
+        out.push(text);
+      run = "";
+    };
+    for (const child of Array.from(el.childNodes)) {
+      if (child.nodeType === Node.ELEMENT_NODE && BLOCK.has(child.tagName)) {
+        flushRun();
+        const text = block2(child, indent);
+        if (text.trim())
+          out.push(text);
+      } else {
+        run += inline2(child);
+      }
+    }
+    flushRun();
+    return out.join(`
+
+`);
+  }
+  function block2(el, indent) {
+    switch (el.tagName) {
+      case "H1":
+      case "H2":
+      case "H3":
+      case "H4":
+      case "H5":
+      case "H6":
+        return `${"#".repeat(Number(el.tagName[1]))} ${Array.from(el.childNodes).map(inline2).join("").trim()}`;
+      case "HR":
+        return "---";
+      case "PRE": {
+        const code = el.querySelector("code");
+        const lang = (code?.className.match(/lang-([\w+#-]+)/)?.[1] ?? "").replace(/^(auto|plaintext|nohighlight)$/, "");
+        const text = (code ?? el).textContent ?? "";
+        const longest = Math.max(2, ...(text.match(/^`{3,}/gm) ?? []).map((run) => run.length));
+        const fence = "`".repeat(longest + 1);
+        return `${fence}${lang}
+${text.replace(/\n$/, "")}
+${fence}`;
+      }
+      case "BLOCKQUOTE":
+        return prefixLines(blocks(el, ""), "> ");
+      case "ASIDE": {
+        if (el.classList.contains("onebox")) {
+          const src = el.getAttribute("data-onebox-src") ?? el.querySelector("header a, h3 a, a")?.getAttribute("href") ?? "";
+          const title = el.querySelector("h3, h4")?.textContent?.trim() ?? "";
+          return src ? title ? `[${title}](${absolute(src)})` : absolute(src) : "";
+        }
+        if (el.classList.contains("quote")) {
+          const who = el.getAttribute("data-username") ?? el.querySelector(".title")?.textContent?.trim().replace(/[:：]$/, "") ?? "";
+          const quote = el.querySelector("blockquote");
+          const body = quote ? blocks(quote, "") : "";
+          return prefixLines(who ? `**${who}：**
+${body}` : body, "> ");
+        }
+        return blocks(el, indent);
+      }
+      case "UL":
+      case "OL": {
+        const ordered = el.tagName === "OL";
+        let n = Number(el.getAttribute("start") ?? 1) || 1;
+        return Array.from(el.children).filter((child) => child.tagName === "LI").map((item) => {
+          const marker = ordered ? `${n++}. ` : "- ";
+          const body = blocks(item, "").replace(/\n\n(?=[-\d])/g, `
+`);
+          return marker + body.split(`
+`).join(`
+${" ".repeat(marker.length)}`);
+        }).join(`
+`);
+      }
+      case "TABLE":
+        return table(el);
+      case "DETAILS": {
+        const summary = el.querySelector(":scope > summary");
+        const title = summary ? Array.from(summary.childNodes).map(inline2).join("").trim() : "详情";
+        summary?.remove();
+        return `<details>
+<summary>${title}</summary>
+
+${blocks(el, indent)}
+
+</details>`;
+      }
+      default:
+        return blocks(el, indent);
+    }
+  }
+  function table(el) {
+    const rows = Array.from(el.querySelectorAll("tr")).map((row) => Array.from(row.children).map((cell) => Array.from(cell.childNodes).map(inline2).join("").trim().replace(/\|/g, "\\|").replace(/\n/g, " ")));
+    if (!rows.length)
+      return "";
+    const width = Math.max(...rows.map((row) => row.length));
+    const line = (cells) => `| ${Array.from({ length: width }, (_, i) => cells[i] ?? "").join(" | ")} |`;
+    return [line(rows[0]), line(Array(width).fill("---")), ...rows.slice(1).map(line)].join(`
+`);
+  }
+  var pad4 = (value) => String(value).padStart(2, "0");
+  function formatStamp(iso) {
+    const time = iso ? Date.parse(iso) : NaN;
+    if (!Number.isFinite(time))
+      return "";
+    const date = new Date(time);
+    return `${date.getFullYear()}-${pad4(date.getMonth() + 1)}-${pad4(date.getDate())} ${pad4(date.getHours())}:${pad4(date.getMinutes())}`;
+  }
+  var author = (post) => post.name && post.name !== post.username ? `${post.name}（@${post.username}）` : `@${post.username}`;
+  var replyTo = (post) => post.reply_to_user?.username ? ` 回复 @${post.reply_to_user.username}` : "";
+  function toMarkdown(topic) {
+    const parts = [
+      `# ${topic.title}`,
+      `> 来源：${topic.url}  
+> 导出于 ${formatStamp(topic.exportedAt.toISOString())}，共 ${topic.posts.length} 楼`
+    ];
+    if (topic.summary)
+      parts.push(`## AI 总结
+
+${topic.summary.trim()}`);
+    for (const post of topic.posts) {
+      parts.push(`---
+
+### #${post.post_number} ${author(post)}${replyTo(post)} · ${formatStamp(post.created_at)}
+
+${cookedToMarkdown(post.cooked ?? "")}`);
+    }
+    return `${parts.join(`
+
+`)}
+`;
+  }
+  function toText(topic) {
+    const parts = [topic.title, `来源：${topic.url}`, `导出于 ${formatStamp(topic.exportedAt.toISOString())}，共 ${topic.posts.length} 楼`];
+    if (topic.summary)
+      parts.push(`【AI 总结】
+${topic.summary.trim()}`);
+    for (const post of topic.posts) {
+      parts.push(`#${post.post_number} ${author(post)}${replyTo(post)} · ${formatStamp(post.created_at)}
+${cookedToText(post.cooked ?? "", (img) => img.alt || "[图片]")}`);
+    }
+    return `${parts.join(`
+
+`)}
+`;
+  }
+  function absoluteHtml(cooked) {
+    const doc = new DOMParser().parseFromString(`<!doctype html><body>${cooked}`, "text/html");
+    for (const el of Array.from(doc.querySelectorAll("[href], [src], [srcset]"))) {
+      for (const attr of ["href", "src"]) {
+        const value = el.getAttribute(attr);
+        if (value && !value.startsWith("#") && !value.startsWith("data:"))
+          el.setAttribute(attr, absolute(value));
+      }
+      el.removeAttribute("srcset");
+    }
+    for (const el of Array.from(doc.querySelectorAll("script")))
+      el.remove();
+    return doc.body.innerHTML;
+  }
+  var HTML_STYLE = `body{max-width:860px;margin:2rem auto;padding:0 1rem;font:16px/1.7 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:#222}
+h1{font-size:1.6rem}a{color:#0969da}img{max-width:100%;height:auto}img.emoji{width:1.2em;height:1.2em;vertical-align:middle}
+.post{border-top:1px solid #ddd;padding:1rem 0}.meta{color:#666;font-size:.9rem;margin-bottom:.5rem}
+pre{background:#f6f8fa;padding:.75rem;overflow:auto;border-radius:6px}code{font-family:ui-monospace,monospace}
+blockquote,aside.quote{border-left:4px solid #ddd;margin:0 0 1rem;padding:0 1rem;color:#555}.summary{background:#f6f8fa;padding:1rem;border-radius:8px;white-space:pre-wrap}
+table{border-collapse:collapse}td,th{border:1px solid #ddd;padding:.3rem .6rem}.lightbox-wrapper .meta{display:none}
+@media (prefers-color-scheme:dark){body{background:#111;color:#ddd}.post{border-color:#333}pre,.summary{background:#1c1c1c}a{color:#58a6ff}}`;
+  function toHtml(topic) {
+    const posts = topic.posts.map((post) => `<article class="post" id="post-${post.post_number}">
+<div class="meta">#${post.post_number} ${escapeHtml(author(post))}${escapeHtml(replyTo(post))} · ${escapeHtml(formatStamp(post.created_at))}</div>
+<div class="cooked">${absoluteHtml(post.cooked ?? "")}</div>
+</article>`).join(`
+`);
+    return `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(topic.title)}</title><style>${HTML_STYLE}</style></head>
+<body>
+<h1>${escapeHtml(topic.title)}</h1>
+<p class="meta">来源：<a href="${escapeHtml(topic.url)}">${escapeHtml(topic.url)}</a> · 导出于 ${escapeHtml(formatStamp(topic.exportedAt.toISOString()))}，共 ${topic.posts.length} 楼</p>
+${topic.summary ? `<h2>AI 总结</h2><div class="summary">${escapeHtml(topic.summary.trim())}</div>` : ""}
+${posts}
+</body></html>
+`;
+  }
+  function toJson(topic) {
+    return JSON.stringify({
+      topicId: topic.topicId,
+      title: topic.title,
+      url: topic.url,
+      exportedAt: topic.exportedAt.toISOString(),
+      summary: topic.summary,
+      posts: topic.posts.map((post) => ({
+        postNumber: post.post_number,
+        username: post.username,
+        name: post.name || undefined,
+        replyTo: post.reply_to_user?.username,
+        createdAt: post.created_at,
+        markdown: cookedToMarkdown(post.cooked ?? ""),
+        cooked: post.cooked
+      }))
+    }, null, 2);
+  }
+  var FORMATS = [
+    { id: "md", label: "Markdown", mime: "text/markdown" },
+    { id: "html", label: "HTML", mime: "text/html" },
+    { id: "txt", label: "纯文本", mime: "text/plain" },
+    { id: "json", label: "JSON", mime: "application/json" }
+  ];
+  function renderExport(topic, format) {
+    switch (format) {
+      case "md":
+        return toMarkdown(topic);
+      case "html":
+        return toHtml(topic);
+      case "txt":
+        return toText(topic);
+      case "json":
+        return toJson(topic);
+    }
+  }
+  function exportFileName(topic, format) {
+    const base = topic.title.replace(/[\\/:*?"<>|\p{Cc}]+/gu, " ").replace(/\s+/g, " ").trim().slice(0, 60) || "topic";
+    return `${base}-${topic.topicId}.${format}`;
+  }
+
+  // src/plugins/topicExport/index.ts
+  var logger15 = new Logger("TopicExport", "#f9e2af");
+  var BUTTON = "ldpp-export-button";
+  var FOOTER = "#topic-footer-buttons .topic-footer-main-buttons, #topic-footer-buttons .topic-footer-main-buttons__actions";
+  var settings19 = definePluginSettings({
+    includeSummary: {
+      type: 2 /* BOOLEAN */,
+      description: "导出时在开头附上该话题最新一次 AI 总结（如果有）。",
+      default: true
+    }
+  });
+  var busy = false;
+  async function exportTopic(topicId, format) {
+    if (busy)
+      return;
+    busy = true;
+    const toast = showToast("正在读取话题全部楼层…", "loading", { topicId, key: `export:${topicId}` });
+    try {
+      const { title, posts } = await fetchAllPosts(topicId, {
+        onRetry: (info) => toast.update(`linux.do 限流，${info.delaySeconds} 秒后重试（${info.attempt}/${info.total}）…`, "loading")
+      });
+      rememberTopicTitle(topicId, title);
+      const summary = settings19.store.includeSummary ? Summaries.get(topicId)?.[0]?.summary : undefined;
+      const topic = { topicId, title, url: `${location.origin}/t/topic/${topicId}`, posts, summary, exportedAt: new Date };
+      const spec = FORMATS.find((item) => item.id === format) ?? FORMATS[0];
+      downloadText(renderExport(topic, spec.id), exportFileName(topic, spec.id), spec.mime);
+      toast.update(`已导出 ${posts.length} 楼（${spec.label}）`, "success");
+    } catch (error) {
+      logger15.error("导出失败", error);
+      toast.update(`导出失败：${errorMessage(error)}`, "error");
+    } finally {
+      busy = false;
+    }
+  }
+  var openMenu = null;
+  function closeMenu() {
+    openMenu?.remove();
+    openMenu = null;
+    document.removeEventListener("pointerdown", onOutside, true);
+  }
+  function onOutside(event) {
+    if (event.target instanceof Node && (openMenu?.contains(event.target) || event.target.closest?.(`.${BUTTON}`)))
+      return;
+    closeMenu();
+  }
+  function toggleMenu(button) {
+    if (openMenu)
+      return closeMenu();
+    const topicId = currentRoute().topicId;
+    if (!topicId)
+      return;
+    const menu = mark(h("div", { class: "ldpp-export-menu", attrs: { role: "menu" } }, ...FORMATS.map((item) => h("button", {
+      type: "button",
+      class: "ldpp-export-item",
+      attrs: { role: "menuitem" },
+      on: { click: () => {
+        closeMenu();
+        exportTopic(topicId, item.id);
+      } }
+    }, item.label))), "export-menu");
+    const rect = button.getBoundingClientRect();
+    menu.style.left = `${Math.round(rect.left)}px`;
+    menu.style.bottom = `${Math.round(window.innerHeight - rect.top + 4)}px`;
+    document.body.append(menu);
+    openMenu = menu;
+    document.addEventListener("pointerdown", onOutside, true);
+    window.addEventListener("scroll", () => closeMenu(), { once: true, passive: true });
+  }
+  function ensureButton() {
+    if (currentRoute().kind !== "topic")
+      return;
+    const footer = document.querySelector(FOOTER);
+    if (!footer || footer.querySelector(`:scope > .${BUTTON}`))
+      return;
+    const button = mark(h("button", {
+      type: "button",
+      class: `btn btn-default btn-icon-text ${BUTTON}`,
+      title: "导出整个话题（Markdown / HTML / 纯文本 / JSON）",
+      attrs: { "aria-haspopup": "menu" },
+      on: { click: (event) => toggleMenu(event.currentTarget) }
+    }, DownloadIcon(14), h("span", { class: "d-button-label" }, "导出")), "export-button");
+    footer.append(button);
+  }
+  var observer6 = null;
+  var timer2;
+  var topicExport_default = definePlugin({
+    name: "TopicExport",
+    displayName: "话题导出",
+    description: "在话题底部加「导出」按钮，把全部楼层存成 Markdown、HTML、纯文本或 JSON，含楼层号、作者和时间，可附上 AI 总结（对照 Void++ ExportChat）。",
+    tags: ["reading"],
+    icon: DownloadIcon,
+    enabledByDefault: true,
+    settings: settings19,
+    start() {
+      observer6 = new MutationObserver(() => {
+        timer2 ??= setTimeout(() => {
+          timer2 = undefined;
+          ensureButton();
+        }, 150);
+      });
+      observer6.observe(document.documentElement, { childList: true, subtree: true });
+      ensureButton();
+    },
+    stop() {
+      observer6?.disconnect();
+      observer6 = null;
+      clearTimeout(timer2);
+      timer2 = undefined;
+      closeMenu();
+      for (const button of document.querySelectorAll(`.${BUTTON}`))
+        button.remove();
+    },
+    events: {
+      navigate: () => closeMenu()
+    }
+  });
+
   // src/plugins/customGreeting/index.ts
   var TITLE = ".welcome-banner__title";
-  var STYLE3 = "customGreeting-banner";
+  var STYLE4 = "customGreeting-banner";
   var LEGACY_STYLE_ID = "gc-greeting-style-v1";
   var HOME_PATHS = new Set(["/", "/latest", "/top", "/new", "/unread", "/hot", "/categories"]);
   var DEFAULT_GREETINGS = [
@@ -16426,7 +17819,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     "The best way to predict the future is to create it."
   ].join(`
 `);
-  var settings15 = definePluginSettings({
+  var settings20 = definePluginSettings({
     mode: {
       type: 3 /* SELECT */,
       description: "切换时机",
@@ -16494,61 +17887,61 @@ ${TITLE} {
     user-select: none !important;
 }` : ""}`;
   }
-  var mode = () => ["interval", "manual"].includes(String(settings15.store.mode)) ? settings15.store.mode : "refresh";
-  var greetings = () => parseGreetings(settings15.store.phrases);
+  var mode = () => ["interval", "manual"].includes(String(settings20.store.mode)) ? settings20.store.mode : "refresh";
+  var greetings = () => parseGreetings(settings20.store.phrases);
   var isHome = () => HOME_PATHS.has(location.pathname.replace(/\/+$/, "") || "/");
   function pickNextIndex(length, advance, random = Math.random) {
     if (length <= 0)
       return 0;
-    const current = Number(settings15.store.greetIndex ?? -1);
+    const current = Number(settings20.store.greetIndex ?? -1);
     if (length === 1) {
-      settings15.store.greetIndex = 0;
+      settings20.store.greetIndex = 0;
       return 0;
     }
     if (!advance) {
       if (current >= 0 && current < length)
         return current;
-      settings15.store.greetIndex = 0;
+      settings20.store.greetIndex = 0;
       return 0;
     }
-    if (settings15.store.order === "random") {
-      const previous = current >= 0 && current < length ? current : Number(settings15.store.lastRandom ?? -1);
+    if (settings20.store.order === "random") {
+      const previous = current >= 0 && current < length ? current : Number(settings20.store.lastRandom ?? -1);
       let next = Math.floor(random() * length);
       for (let guard = 0;next === previous && guard < 10; guard++)
         next = Math.floor(random() * length);
-      settings15.store.greetIndex = next;
-      settings15.store.lastRandom = next;
+      settings20.store.greetIndex = next;
+      settings20.store.lastRandom = next;
       return next;
     }
     const next = ((current >= -1 && current < length ? current : -1) + 1) % length;
-    settings15.store.greetIndex = next;
+    settings20.store.greetIndex = next;
     return next;
   }
-  var active3 = false;
+  var active6 = false;
   var wasHome = false;
-  var timer2;
-  var listeners6 = null;
+  var timer3;
+  var listeners7 = null;
   var warnedLegacy3 = false;
   function paint(advance) {
     const list = greetings();
-    if (!active3 || !list.length) {
-      unregisterStyle(STYLE3);
+    if (!active6 || !list.length) {
+      unregisterStyle(STYLE4);
       return;
     }
     const index = pickNextIndex(list.length, advance);
-    registerStyle(STYLE3, greetingCss(list[index] ?? list[0], mode() === "manual" && list.length > 1));
+    registerStyle(STYLE4, greetingCss(list[index] ?? list[0], mode() === "manual" && list.length > 1));
   }
   function stopTimer() {
-    if (timer2 !== undefined)
-      clearInterval(timer2);
-    timer2 = undefined;
+    if (timer3 !== undefined)
+      clearInterval(timer3);
+    timer3 = undefined;
   }
   function startTimerIfNeeded() {
     stopTimer();
-    if (!active3 || !isHome() || mode() !== "interval" || greetings().length <= 1)
+    if (!active6 || !isHome() || mode() !== "interval" || greetings().length <= 1)
       return;
-    const seconds = Math.min(3600, Math.max(1, Number(settings15.store.intervalSec) || 10));
-    timer2 = setInterval(() => paint(true), seconds * 1000);
+    const seconds = Math.min(3600, Math.max(1, Number(settings20.store.intervalSec) || 10));
+    timer3 = setInterval(() => paint(true), seconds * 1000);
   }
   function warnLegacy() {
     if (warnedLegacy3 || !document.getElementById(LEGACY_STYLE_ID))
@@ -16598,24 +17991,24 @@ ${TITLE} {
     tags: ["reading"],
     icon: MessageCircleIcon,
     enabledByDefault: true,
-    settings: settings15,
+    settings: settings20,
     start() {
-      active3 = true;
+      active6 = true;
       wasHome = false;
-      listeners6 = new AbortController;
-      document.addEventListener("click", onClick, { signal: listeners6.signal });
-      document.addEventListener("contextmenu", onContextMenu(), { signal: listeners6.signal });
+      listeners7 = new AbortController;
+      document.addEventListener("click", onClick, { signal: listeners7.signal });
+      document.addEventListener("contextmenu", onContextMenu(), { signal: listeners7.signal });
       onRoute();
       if (!isHome())
         paint(false);
     },
     stop() {
-      active3 = false;
+      active6 = false;
       wasHome = false;
-      listeners6?.abort();
-      listeners6 = null;
+      listeners7?.abort();
+      listeners7 = null;
       stopTimer();
-      unregisterStyle(STYLE3);
+      unregisterStyle(STYLE4);
     },
     events: {
       navigate: onRoute
@@ -17654,7 +19047,7 @@ ${TITLE} {
   // src/plugins/panguSpacing/index.ts
   var SCOPE = ".cooked, h1";
   var SKIP2 = ".d-editor-preview";
-  var BUTTON = "ldpp-pangu-button";
+  var BUTTON2 = "ldpp-pangu-button";
   var PROTECTED = [
     [/^(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^\1[ \t]*$|(?![\s\S]))/gm, false],
     [/`[^`\n]+`/g, true],
@@ -17723,20 +19116,20 @@ ${TITLE} {
     if (!changed)
       showToast("没有需要加空格的地方。", "info", { key: "pangu-composer" });
   }
-  function ensureButton() {
+  function ensureButton2() {
     const create = document.querySelector("#reply-control .save-or-cancel .create");
-    if (!create || create.parentElement?.querySelector(`:scope > .${BUTTON}`))
+    if (!create || create.parentElement?.querySelector(`:scope > .${BUTTON2}`))
       return;
     const button = mark(h("button", {
       type: "button",
-      class: `btn ${BUTTON}`,
+      class: `btn ${BUTTON2}`,
       title: "在中文与英文、数字之间加上空格（代码、链接地址保持不变）",
       on: { click: spaceComposer }
     }, h("span", { class: "d-button-label" }, "混排优化")), "pangu-button");
     create.after(button);
   }
-  var observer5 = null;
-  var flushTimer;
+  var observer7 = null;
+  var flushTimer2;
   var pending4 = new Set;
   function addRoot(el) {
     if (!el || el.closest(SKIP2) || isOwnNode(el))
@@ -17756,12 +19149,12 @@ ${TITLE} {
     }
   }
   function flush() {
-    flushTimer = undefined;
+    flushTimer2 = undefined;
     for (const root of pending4)
       if (root.isConnected)
         pangu2.spaceNode(root);
     pending4.clear();
-    ensureButton();
+    ensureButton2();
   }
   function onMutations2(mutations) {
     for (const mutation of mutations) {
@@ -17771,7 +19164,7 @@ ${TITLE} {
         for (const node of mutation.addedNodes)
           collect(node);
     }
-    flushTimer ??= setTimeout(flush, 100);
+    flushTimer2 ??= setTimeout(flush, 100);
   }
   var panguSpacing_default = definePlugin({
     name: "PanguSpacing",
@@ -17781,18 +19174,18 @@ ${TITLE} {
     icon: LanguagesIcon,
     enabledByDefault: true,
     start() {
-      observer5 = new MutationObserver(onMutations2);
-      observer5.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+      observer7 = new MutationObserver(onMutations2);
+      observer7.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
       collect(document.documentElement);
       flush();
     },
     stop() {
-      observer5?.disconnect();
-      observer5 = null;
-      clearTimeout(flushTimer);
-      flushTimer = undefined;
+      observer7?.disconnect();
+      observer7 = null;
+      clearTimeout(flushTimer2);
+      flushTimer2 = undefined;
       pending4.clear();
-      for (const button of document.querySelectorAll(`.${BUTTON}`))
+      for (const button of document.querySelectorAll(`.${BUTTON2}`))
         button.remove();
     }
   });
@@ -17840,7 +19233,7 @@ div#reply-control .reply-area {
 .d-header .d-header-icons .icon img.avatar {
     height: 2em !important;
 }`;
-  var settings16 = definePluginSettings({
+  var settings21 = definePluginSettings({
     wide: {
       type: 2 /* BOOLEAN */,
       description: "超宽显示：页面内容铺满整个窗口宽度",
@@ -17852,12 +19245,12 @@ div#reply-control .reply-area {
       default: true
     }
   });
-  function apply() {
-    if (settings16.store.wide !== false)
+  function apply2() {
+    if (settings21.store.wide !== false)
       registerStyle(WIDE_STYLE, WIDE_CSS);
     else
       unregisterStyle(WIDE_STYLE);
-    if (settings16.store.thinHeader !== false)
+    if (settings21.store.thinHeader !== false)
       registerStyle(THIN_STYLE, THIN_HEADER_CSS);
     else
       unregisterStyle(THIN_STYLE);
@@ -17870,13 +19263,13 @@ div#reply-control .reply-area {
     icon: WideIcon,
     enabledByDefault: true,
     startAt: "Init" /* Init */,
-    settings: settings16,
-    start: apply,
+    settings: settings21,
+    start: apply2,
     stop() {
       unregisterStyle(WIDE_STYLE);
       unregisterStyle(THIN_STYLE);
     },
-    onSettingsChange: apply
+    onSettingsChange: apply2
   });
 
   // ldpp-css:src/plugins/driveSync/styles.css
@@ -18297,10 +19690,10 @@ div#reply-control .reply-area {
   }
 
   // src/plugins/driveSync/index.ts
-  var logger14 = new Logger("DriveSync", "#89b4fa");
+  var logger16 = new Logger("DriveSync", "#89b4fa");
   var DEFAULT_FOLDER = "[LINUX DO] \uD83C\uDF1F 话题 & 回复 总结";
   var AUTO_DELAY_MS = 3000;
-  var settings17 = definePluginSettings({
+  var settings22 = definePluginSettings({
     clientId: {
       type: 0 /* STRING */,
       description: "OAuth Client ID",
@@ -18337,22 +19730,22 @@ div#reply-control .reply-area {
   });
   var dirty = new Set;
   var dearrowDirty = false;
-  var timer3 = null;
-  var running2 = null;
+  var timer4 = null;
+  var running3 = null;
   var queued = false;
   var status = "尚未同步";
   var cached = null;
   var statusListeners = new Set;
   var unsubs3 = [];
   function client() {
-    const { clientId, clientSecret, refreshToken } = settings17.store;
+    const { clientId, clientSecret, refreshToken } = settings22.store;
     const key = `${clientId}\x00${clientSecret}\x00${refreshToken}`;
     if (cached?.key !== key)
       cached = { key, client: new DriveClient({ clientId, clientSecret, refreshToken }) };
     return cached.client;
   }
   function engine() {
-    return new DriveSync(client(), settings17.store.folderName.trim() || DEFAULT_FOLDER);
+    return new DriveSync(client(), settings22.store.folderName.trim() || DEFAULT_FOLDER);
   }
   function setStatus(text) {
     status = text;
@@ -18370,11 +19763,11 @@ div#reply-control .reply-area {
         showToast("请先填写 Google Drive 凭据", "warning");
       return;
     }
-    if (running2) {
+    if (running3) {
       queued = true;
-      return running2;
+      return running3;
     }
-    running2 = (async () => {
+    running3 = (async () => {
       const sync = engine();
       try {
         let dearrowCount = 0;
@@ -18395,7 +19788,7 @@ div#reply-control .reply-area {
         if (manual)
           showToast("Google Drive 同步完成", "success");
       } catch (error) {
-        logger14.error("同步失败", error);
+        logger16.error("同步失败", error);
         setStatus(`同步失败：${errorMessage(error)}`);
         if (manual)
           showToast(`Drive 同步失败：${errorMessage(error)}`, "error");
@@ -18403,21 +19796,21 @@ div#reply-control .reply-area {
           showToast(`Drive 自动同步失败：${errorMessage(error)}`, "error", { key: "drive-sync" });
       }
     })().finally(() => {
-      running2 = null;
+      running3 = null;
       if (queued) {
         queued = false;
         scheduleSync();
       }
     });
-    return running2;
+    return running3;
   }
   function scheduleSync() {
-    if (!settings17.store.autoSync || !client().configured || !dirty.size && !dearrowDirty)
+    if (!settings22.store.autoSync || !client().configured || !dirty.size && !dearrowDirty)
       return;
-    if (timer3)
-      clearTimeout(timer3);
-    timer3 = setTimeout(() => {
-      timer3 = null;
+    if (timer4)
+      clearTimeout(timer4);
+    timer4 = setTimeout(() => {
+      timer4 = null;
       runSync(false);
     }, AUTO_DELAY_MS);
   }
@@ -18459,7 +19852,7 @@ div#reply-control .reply-area {
     description: "把总结、问答与 DeArrow 状态同步到你自己的 Google Drive，多设备共享；本地缺失时自动从云端拉取。",
     tags: ["sync"],
     icon: CloudIcon,
-    settings: settings17,
+    settings: settings22,
     start() {
       dirty = loadDirty();
       dearrowDirty = loadDeArrowDirty();
@@ -18485,15 +19878,15 @@ div#reply-control .reply-area {
       if (client().configured) {
         engine().pullDeArrow().then((count) => {
           if (count)
-            logger14.info(`从 Drive 合并了 ${count} 条 DeArrow 状态`);
-        }, (error) => logger14.warn("拉取 DeArrow 状态失败", error));
+            logger16.info(`从 Drive 合并了 ${count} 条 DeArrow 状态`);
+        }, (error) => logger16.warn("拉取 DeArrow 状态失败", error));
       }
       scheduleSync();
     },
     stop() {
-      if (timer3)
-        clearTimeout(timer3);
-      timer3 = null;
+      if (timer4)
+        clearTimeout(timer4);
+      timer4 = null;
       for (const unsub of unsubs3.splice(0))
         unsub();
     }
@@ -18502,30 +19895,35 @@ div#reply-control .reply-area {
   // ldpp-virtual:~plugins
   ai_default.updatedAt = 1792361044000;
   notifications_default.updatedAt = 1792789819000;
-  settings_default.updatedAt = 1792791037000;
+  settings_default.updatedAt = 1792792379000;
   userStyles_default.updatedAt = 1792361044000;
-  topicSummary_default.updatedAt = 1792789819000;
+  postTimestamps_default.updatedAt = 1792792379000;
+  topicSummary_default.updatedAt = 1792792379000;
   disableAutoplay_default.updatedAt = 1792361044000;
+  privacyBlur_default.updatedAt = 1792792379000;
   listSummary_default.updatedAt = 1792789819000;
   sidebarWidth_default.updatedAt = 1792361044000;
+  recentTopics_default.updatedAt = 1792792379000;
   createdTime_default.updatedAt = 1792361044000;
+  completionAlert_default.updatedAt = 1792792379000;
   topicBlocker_default.updatedAt = 1792361044000;
   deArrow_default.updatedAt = 1792789819000;
   posterAvatars_default.updatedAt = 1792361044000;
-  noWatermark_default.updatedAt = 1792361044000;
+  noWatermark_default.updatedAt = 1792792379000;
+  topicExport_default.updatedAt = 1792792379000;
   customGreeting_default.updatedAt = 1792361044000;
   searchFilter_default.updatedAt = 1792361044000;
   panguSpacing_default.updatedAt = 1792361044000;
-  topicQA_default.updatedAt = 1792789819000;
+  topicQA_default.updatedAt = 1792792379000;
   wideLayout_default.updatedAt = 1792361044000;
   driveSync_default.updatedAt = 1792705837000;
   keywordSearch_default.updatedAt = 1792361044000;
-  var __plugins_default = { [ai_default.name]: ai_default, [notifications_default.name]: notifications_default, [settings_default.name]: settings_default, [userStyles_default.name]: userStyles_default, [topicSummary_default.name]: topicSummary_default, [disableAutoplay_default.name]: disableAutoplay_default, [listSummary_default.name]: listSummary_default, [sidebarWidth_default.name]: sidebarWidth_default, [createdTime_default.name]: createdTime_default, [topicBlocker_default.name]: topicBlocker_default, [deArrow_default.name]: deArrow_default, [posterAvatars_default.name]: posterAvatars_default, [noWatermark_default.name]: noWatermark_default, [customGreeting_default.name]: customGreeting_default, [searchFilter_default.name]: searchFilter_default, [panguSpacing_default.name]: panguSpacing_default, [topicQA_default.name]: topicQA_default, [wideLayout_default.name]: wideLayout_default, [driveSync_default.name]: driveSync_default, [keywordSearch_default.name]: keywordSearch_default };
+  var __plugins_default = { [ai_default.name]: ai_default, [notifications_default.name]: notifications_default, [settings_default.name]: settings_default, [userStyles_default.name]: userStyles_default, [postTimestamps_default.name]: postTimestamps_default, [topicSummary_default.name]: topicSummary_default, [disableAutoplay_default.name]: disableAutoplay_default, [privacyBlur_default.name]: privacyBlur_default, [listSummary_default.name]: listSummary_default, [sidebarWidth_default.name]: sidebarWidth_default, [recentTopics_default.name]: recentTopics_default, [createdTime_default.name]: createdTime_default, [completionAlert_default.name]: completionAlert_default, [topicBlocker_default.name]: topicBlocker_default, [deArrow_default.name]: deArrow_default, [posterAvatars_default.name]: posterAvatars_default, [noWatermark_default.name]: noWatermark_default, [topicExport_default.name]: topicExport_default, [customGreeting_default.name]: customGreeting_default, [searchFilter_default.name]: searchFilter_default, [panguSpacing_default.name]: panguSpacing_default, [topicQA_default.name]: topicQA_default, [wideLayout_default.name]: wideLayout_default, [driveSync_default.name]: driveSync_default, [keywordSearch_default.name]: keywordSearch_default };
 
   // src/LDPP.ts
-  var logger15 = new Logger("Core", "#f9d77e");
+  var logger17 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261023.8] v1.0.0";
+  var version = "[20261023.9] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -18539,7 +19937,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger15.info(`LD++ ${"[20261023.8] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger17.info(`LD++ ${"[20261023.9] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 

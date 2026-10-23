@@ -86,7 +86,11 @@ export function todayStamp(date = new Date()): string {
 }
 
 export function downloadJson(data: unknown, fileName: string) {
-    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+    downloadText(JSON.stringify(data, null, 2), fileName, "application/json");
+}
+
+export function downloadText(text: string, fileName: string, type = "text/plain") {
+    const url = URL.createObjectURL(new Blob([text], { type: `${type};charset=utf-8` }));
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = fileName;

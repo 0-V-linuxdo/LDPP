@@ -22,6 +22,8 @@ export interface LDPPEventMap {
     /** "locate" only brings the topic into view; "summary" / "question" also open that panel. */
     /** tone is the clicked toast's type, which the original script's highlight is coloured by. */
     focusTopic: { topicId: string; view: "summary" | "question" | "locate"; tone: ToastType; handled: boolean };
+    /** An AI summary or question for a topic started, finished, failed or was cancelled. */
+    aiTask: { kind: "summary" | "question"; topicId: string; state: "start" | "done" | "error" | "cancel"; message?: string };
 }
 
 export type LDPPEvent = keyof LDPPEventMap;

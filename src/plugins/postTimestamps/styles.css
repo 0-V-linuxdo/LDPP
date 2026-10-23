@@ -1,0 +1,22 @@
+.ldpp-post-time {
+    margin-inline-start: 0.4em;
+    color: var(--primary-medium, #888);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.ldpp-post-time::before {
+    content: "· ";
+}
+
+html.ldpp-post-time-replace .relative-date:has(+ .ldpp-post-time) {
+    display: none;
+}
+
+html.ldpp-post-time-replace .ldpp-post-time {
+    margin-inline-start: 0;
+}
+
+html.ldpp-post-time-replace .ldpp-post-time::before {
+    content: none;
+}

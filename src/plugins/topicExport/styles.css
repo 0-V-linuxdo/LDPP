@@ -1,0 +1,31 @@
+.ldpp-export-button svg {
+    margin-inline-end: 0.35em;
+}
+
+.ldpp-export-menu {
+    position: fixed;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    min-width: 9rem;
+    padding: 0.25rem;
+    border: 1px solid var(--ldpp-line);
+    border-radius: var(--ldpp-radius);
+    background: var(--ldpp-bg);
+    box-shadow: var(--ldpp-shadow);
+}
+
+.ldpp-export-item {
+    padding: 0.4rem 0.6rem;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--ldpp-fg);
+    text-align: left;
+    cursor: pointer;
+}
+
+.ldpp-export-item:hover,
+.ldpp-export-item:focus-visible {
+    background: var(--ldpp-soft);
+}

@@ -25,7 +25,7 @@ export const enum OptionType {
     CUSTOM,
 }
 
-export type PluginTag = "topics" | "reading" | "ai" | "search" | "sync" | "core";
+export type PluginTag = "topics" | "reading" | "ai" | "search" | "privacy" | "sync" | "core";
 
 export interface SelectOption {
     label: string;

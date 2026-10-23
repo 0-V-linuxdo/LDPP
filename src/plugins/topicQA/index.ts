@@ -8,7 +8,7 @@ import "./styles.css";
 
 import { type AIProfile, type ChatMessage, chatWithRetry, describeError, getProfile, requireProfile, userContent } from "@api/AI";
 import { addQuestion, Questions } from "@api/DataStore";
-import { subscribe } from "@api/Events";
+import { dispatch, subscribe } from "@api/Events";
 import { prepareImages } from "@api/Images";
 import { showToast } from "@api/Notifications";
 import { definePluginSettings } from "@api/Settings";
@@ -23,6 +23,8 @@ import { renderMarkdown } from "@utils/markdown";
 import { errorMessage, isAbortError, randomId } from "@utils/misc";
 import { formatTime } from "@utils/text";
 import definePlugin, { OptionType } from "@utils/types";
+
+import { clearHistory, HistoryCursor, loadHistory, onFirstLine, onLastLine, rememberQuestion } from "./history";
 
 export interface QAPreset {
     id: string;
@@ -78,6 +80,24 @@ export const settings = definePluginSettings({
         description: "提问预设",
         render: renderPresetEditor,
     },
+    inputHistory: {
+        type: OptionType.BOOLEAN,
+        description: "在提问框按 ↑ / ↓ 翻看问过的问题，Esc 回到正在输入的内容（对照 Void++ InputHistory）。",
+        default: true,
+    },
+    historyLimit: {
+        type: OptionType.SLIDER,
+        description: "最多保留几条提问历史。",
+        min: 10,
+        max: 500,
+        step: 10,
+        default: 100,
+    },
+    clearInputHistory: {
+        type: OptionType.COMPONENT,
+        description: "清空提问历史",
+        render: () => Button("清空提问历史", { small: true, onClick: () => { clearHistory(); showToast("提问历史已清空", "success"); } }),
+    },
     historyTurns: {
         type: OptionType.SLIDER,
         description: "追问时带上最近几轮问答作为上下文。",
@@ -86,6 +106,14 @@ export const settings = definePluginSettings({
         default: 8,
     },
 });
+
+/** Questions for ↑ / ↓: the stored history, or, before anything was stored, the questions already in the records. */
+export function historyEntries(): string[] {
+    const stored = loadHistory();
+    if (stored.length) return stored;
+    const records = Object.values(Questions.all()).flat().toSorted((a, b) => b.timestamp.localeCompare(a.timestamp));
+    return [...new Set(records.map(record => record.question.trim()).filter(Boolean))].slice(0, settings.store.historyLimit);
+}
 
 export function allPresets(): QAPreset[] {
     return [...BUILTIN_PRESETS, ...normalizePresets(settings.store.presets)];
@@ -138,6 +166,9 @@ export async function askTopic(topicId: string, question: string, preset?: QAPre
     running.set(topicId, controller);
     pending.set(topicId, { question, presetName: preset?.name ?? "" });
     notify(topicId);
+    let outcome: "done" | "error" | "cancel" = "cancel";
+    let failure = "";
+    dispatch("aiTask", { kind: "question", topicId, state: "start" });
     try {
         const profile = requireProfile(getProfile());
         const content = await topicContent(topicId, profile, controller.signal);
@@ -151,16 +182,20 @@ export async function askTopic(topicId: string, question: string, preset?: QAPre
             onRetry: notice => showToast(`提问失败，第 ${notice.attempt}/${notice.total} 次重试…`, "warning", { topicId, key: `qa:${topicId}`, onClick: type => focusTopic(topicId, "question", type) }),
         });
         addQuestion(topicId, { id: randomId("qa-"), question, answer, presetId: preset?.id ?? "", presetName: preset?.name ?? "", timestamp: new Date().toISOString(), model: profile.model || "未知模型" });
+        outcome = "done";
         return true;
     } catch (error) {
         if (isAbortError(error)) return false;
         logger.error("提问失败", error);
+        outcome = "error";
+        failure = errorMessage(error);
         showToast(`提问失败：${errorMessage(error)}`, "error", { topicId, key: `qa:${topicId}`, onClick: type => focusTopic(topicId, "question", type) });
         throw error;
     } finally {
         running.delete(topicId);
         pending.delete(topicId);
         notify(topicId);
+        dispatch("aiTask", { kind: "question", topicId, state: outcome, message: failure || undefined });
     }
 }
 
@@ -206,6 +241,14 @@ export function createQAPanel(topicId: string, { variant = "sidebar" }: QAPanelO
     const el = h("div", { class: `ldpp-qa ldpp-qa-${variant}` }, thread, h("div", { class: "ldpp-qa-composer" }, chips, box));
 
     const busy = () => running.has(topicId);
+    const cursor = new HistoryCursor(historyEntries);
+    const showEntry = (text: string | null) => {
+        if (text === null) return false;
+        input.value = text;
+        input.dispatchEvent(new Event("input"));
+        input.setSelectionRange(text.length, text.length);
+        return true;
+    };
     const fill = (preset: QAPreset) => {
         chosen = preset;
         input.value = preset.prompt;
@@ -259,6 +302,8 @@ export function createQAPanel(topicId: string, { variant = "sidebar" }: QAPanelO
     const submit = async (question = input.value.trim(), preset = chosen?.prompt === question ? chosen : undefined) => {
         if (!question || busy()) return;
         failed = null;
+        if (settings.store.inputHistory) rememberQuestion(question, settings.store.historyLimit);
+        cursor.reset();
         const typed = question === input.value.trim();
         if (typed) {
             input.value = "";
@@ -289,8 +334,17 @@ export function createQAPanel(topicId: string, { variant = "sidebar" }: QAPanelO
         } else if (event.key === "Escape" && !menu.hidden) {
             event.stopPropagation();
             menu.hidden = true;
+        } else if (settings.store.inputHistory && menu.hidden && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+            const shown = event.key === "ArrowUp" && onFirstLine(input) ? showEntry(cursor.older(input.value))
+                : event.key === "ArrowDown" && onLastLine(input) ? showEntry(cursor.newer())
+                    : event.key === "Escape" ? showEntry(cursor.restore()) : false;
+            if (shown) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
         }
     });
+    input.addEventListener("beforeinput", () => cursor.reset());
     input.addEventListener("input", () => {
         if (input.value.trim()) menu.hidden = true;
         renderControls();

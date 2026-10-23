@@ -6,6 +6,7 @@
 
 import { AIError, type AIProfile, type ChatMessage, chatWithRetry, getProfile, requireProfile, userContent } from "@api/AI";
 import { rememberTopicTitle } from "@api/Discourse";
+import { dispatch } from "@api/Events";
 import { addSummary, hasSummary, Summarized } from "@api/DataStore";
 import { prepareImages } from "@api/Images";
 import { currentRoute } from "@api/Navigation";
@@ -146,11 +147,15 @@ export async function summarizeTopic(topicId: string, { mode = "manual", force =
         if (mode === "auto" && currentRoute().topicId !== topicId) throw abortError("已离开话题，自动总结取消");
     };
     notify(topicId);
+    let outcome: "done" | "error" | "cancel" = "cancel";
+    let failure = "";
+    dispatch("aiTask", { kind: "summary", topicId, state: "start" });
     try {
         if (!hasSummary(topicId) && Summarized.has(topicId) && hasRemoteSource()) {
             setStatus("正在从云端拉取已有总结…");
             if (await pullRemote(topicId, signal)) {
                 op.toast.update("已从云端拉取总结", "success");
+                outcome = "done";
                 return true;
             }
             guard();
@@ -184,12 +189,14 @@ export async function summarizeTopic(topicId: string, { mode = "manual", force =
         guard();
         if (mode === "auto" && hasSummary(topicId)) {
             op.toast.update("已有总结，已停止自动总结", "success");
+            outcome = "done";
             return true;
         }
         const filter = config.filter();
         const summary = filter.enabled ? stripFences(raw, filter.prefixes, filter.suffixes) : raw.trim();
         addSummary(topicId, { summary, timestamp: new Date().toISOString(), model: profile.model || "未知模型", renderMode: renderModeOf(prompt, summary) });
         op.toast.update(mode === "auto" ? "自动总结完成" : "总结完成", "success");
+        outcome = "done";
         return true;
     } catch (error) {
         if (isAbortError(error)) {
@@ -203,10 +210,13 @@ export async function summarizeTopic(topicId: string, { mode = "manual", force =
             return false;
         }
         logger.error(`话题 ${topicId} 总结失败`, error);
+        outcome = "error";
+        failure = errorMessage(error);
         op.toast.update(`总结失败：${errorMessage(error)}`, "error");
         return false;
     } finally {
         if (operations.get(topicId) === op) operations.delete(topicId);
         notify(topicId);
+        dispatch("aiTask", { kind: "summary", topicId, state: outcome, message: failure || undefined });
     }
 }

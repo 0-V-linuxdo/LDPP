@@ -45,7 +45,7 @@ export const settings = definePluginSettings({
 type Category = "favorites" | "recent" | "all" | PluginTag;
 type ListFilter = "all" | "enabled" | "disabled";
 
-const TAG_LABEL: Partial<Record<PluginTag, string>> = { topics: "话题列表", reading: "阅读", ai: "AI", search: "搜索", sync: "同步" };
+const TAG_LABEL: Partial<Record<PluginTag, string>> = { topics: "话题列表", reading: "阅读", ai: "AI", search: "搜索", privacy: "隐私", sync: "同步" };
 const FILTERS: Array<{ value: ListFilter; label: string }> = [
     { value: "all", label: "全部" },
     { value: "enabled", label: "已启用" },

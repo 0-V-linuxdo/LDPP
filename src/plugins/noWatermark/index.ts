@@ -214,7 +214,7 @@ export default definePlugin({
     name: "NoWatermark",
     displayName: "去除隐藏水印",
     description: "找出页面上与账号关联的隐藏水印（铺满屏幕的半透明用户名、平铺的水印图、透明画布等）并用样式藏起来，截图里就不会带上；不删除、不改动网页自己的元素。烧进图片里的水印和浏览器指纹不在此列。",
-    tags: ["reading"],
+    tags: ["reading", "privacy"],
     icon: EraserIcon,
     enabledByDefault: true,
     startAt: StartAt.Init,
