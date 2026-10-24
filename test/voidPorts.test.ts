@@ -7,6 +7,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { tabState } from "../src/plugins/completionAlert";
+import { avatarOwner, cropRect, paintIdentity, restoreIdentity } from "../src/plugins/customIdentity/paint";
 import { stampPosts } from "../src/plugins/postTimestamps";
 import { privacyCss } from "../src/plugins/privacyBlur";
 import { floorOf, initialIndex, normalizeRecent, patchRecent, summaryExcerpt, timeAgo, touchRecent, wrapIndex } from "../src/plugins/recentTopics/model";
@@ -148,5 +149,77 @@ describe("completion alert", () => {
         expect(tabState(1, "done")).toBe("running");
         expect(tabState(0, "error")).toBe("error");
         expect(tabState(0, null)).toBe("idle");
+    });
+});
+
+describe("custom identity", () => {
+    const identity = { username: "alice", avatar: "data:image/png;base64,AAAA", name: "爱丽丝", everywhere: true };
+    const page = () => {
+        document.body.innerHTML = `
+<header class="d-header"><div class="header-dropdown-toggle current-user"><img class="avatar" src="https://linux.do/user_avatar/linux.do/Alice/48/1_2.png" srcset="https://linux.do/user_avatar/linux.do/Alice/96/1_2.png 2x"></div></header>
+<article class="topic-post"><div class="topic-avatar"><img class="avatar" src="https://cdn.linux.do/user_avatar/linux.do/alice/48/1_2.png"></div>
+  <div class="names"><span class="first username"><a href="/u/alice" data-user-card="alice">alice</a></span><span class="second full-name"><a href="/u/alice" data-user-card="alice">Alice</a></span><span class="user-title">Lv3</span></div></article>
+<article class="topic-post"><div class="topic-avatar"><img class="avatar" src="https://linux.do/user_avatar/linux.do/bob/48/2_2.png"></div>
+  <div class="names"><span class="first username"><a href="/u/bob" data-user-card="bob">bob</a></span></div></article>`;
+    };
+
+    test("owner comes from the avatar URL, any case", () => {
+        expect(avatarOwner("https://linux.do/user_avatar/linux.do/Alice/48/1_2.png")).toBe("alice");
+        expect(avatarOwner("https://linux.do/letter_avatar_proxy/v4/letter/a/b/48.png")).toBeNull();
+    });
+
+    test("crop stays inside the picture", () => {
+        expect(cropRect(200, 100, 1, 0, 0)).toEqual({ z: 1, side: 100, x: 50, y: 50 });
+        expect(cropRect(200, 100, 2, 300, 50)).toEqual({ z: 2, side: 50, x: 175, y: 50 });
+    });
+
+    test("only the account's avatars and name change, and come back", () => {
+        page();
+        paintIdentity(document, identity);
+        const [header, mine, other] = document.querySelectorAll<HTMLImageElement>("img.avatar");
+        expect(header.getAttribute("src")).toBe(identity.avatar);
+        expect(header.hasAttribute("srcset")).toBe(false);
+        expect(mine.getAttribute("src")).toBe(identity.avatar);
+        expect(other.getAttribute("src")).toContain("/bob/");
+        const names = document.querySelector(".names")!;
+        expect(names.querySelector(".ldpp-identity-name a")?.textContent).toBe("爱丽丝");
+        expect(names.querySelectorAll(".ldpp-identity-hidden").length).toBe(2);
+        expect(document.querySelectorAll(".ldpp-identity-name").length).toBe(1);
+
+        paintIdentity(document, identity);
+        expect(document.querySelectorAll(".ldpp-identity-name").length).toBe(1);
+
+        restoreIdentity(document);
+        expect(header.getAttribute("src")).toContain("/Alice/48/");
+        expect(header.getAttribute("srcset")).toContain("/96/");
+        expect(document.querySelector(".ldpp-identity-name, .ldpp-identity-hidden")).toBeNull();
+    });
+
+    test("a new picture replaces the old one without losing the original", () => {
+        page();
+        paintIdentity(document, identity);
+        paintIdentity(document, { ...identity, avatar: "data:image/png;base64,BBBB" });
+        const header = document.querySelector<HTMLImageElement>(".d-header img")!;
+        expect(header.getAttribute("src")).toBe("data:image/png;base64,BBBB");
+        restoreIdentity(document);
+        expect(header.getAttribute("src")).toContain("/Alice/48/");
+    });
+
+    test("with 「其他位置」 off only the header changes", () => {
+        page();
+        paintIdentity(document, { ...identity, everywhere: false });
+        const [header, mine] = document.querySelectorAll<HTMLImageElement>("img.avatar");
+        expect(header.getAttribute("src")).toBe(identity.avatar);
+        expect(mine.getAttribute("src")).toContain("/alice/48/");
+    });
+
+    test("an element Discourse reuses for another user is left to it", () => {
+        page();
+        paintIdentity(document, identity);
+        const mine = document.querySelectorAll<HTMLImageElement>("img.avatar")[1];
+        mine.setAttribute("src", "https://linux.do/user_avatar/linux.do/carol/48/3_2.png");
+        paintIdentity(document, identity);
+        expect(mine.getAttribute("src")).toContain("/carol/");
+        expect(mine.hasAttribute("data-ldpp-identity")).toBe(false);
     });
 });

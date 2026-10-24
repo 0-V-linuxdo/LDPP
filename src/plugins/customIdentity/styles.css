@@ -1,0 +1,106 @@
+.ldpp-identity-hidden {
+    display: none !important;
+}
+
+.ldpp-identity-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ldpp-identity-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.ldpp-identity-preview-box {
+    flex: none;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--ldpp-soft);
+    border: 1px solid var(--ldpp-line);
+}
+
+.ldpp-identity-preview {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ldpp-identity-source {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ldpp-identity-source > .ldpp-input {
+    width: 100%;
+}
+
+.ldpp-identity-crop {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 240px;
+}
+
+.ldpp-identity-crop[hidden] {
+    display: none;
+}
+
+.ldpp-identity-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 8px;
+    background: var(--ldpp-soft);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.ldpp-identity-stage:active {
+    cursor: grabbing;
+}
+
+/* The circle the avatar is cut to, with the rest of the square dimmed. */
+.ldpp-identity-stage::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 0 999px rgb(0 0 0 / 45%);
+    outline: 2px solid rgb(255 255 255 / 85%);
+    outline-offset: -2px;
+    pointer-events: none;
+}
+
+.ldpp-identity-stage-img {
+    position: absolute;
+    max-width: none;
+    pointer-events: none;
+}
+
+.ldpp-identity-zoom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ldpp-identity-zoom > .ldpp-slider-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ldpp-identity-zoom .ldpp-slider {
+    flex: 1;
+}

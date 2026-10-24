@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261023.11
+// @version      20261024.1
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261023.11] v1.0.0 — a modification for linux.do
+ * LD++ [20261024.1] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -1149,6 +1149,9 @@ ${value} EOT;`;
   }
   function randomId(prefix = "") {
     return `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  }
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
   }
   function errorMessage(error) {
     if (error instanceof Error)
@@ -6805,6 +6808,7 @@ Please report this to https://github.com/markedjs/marked.`;
   var PanelLeftIcon = stroke(["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }], path("M9 3v18"));
   var MessageCircleIcon = stroke(path("M7.9 20A9 9 0 1 0 4 16.1L2 22Z"));
   var UserCircleIcon = stroke(circle(12, 12, 10), circle(12, 10, 3), path("M7 20.66V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.66"));
+  var UserRoundPenIcon = stroke(path("M2 21a8 8 0 0 1 10.821-7.487"), path("M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"), circle(10, 8, 5));
   var WideIcon = stroke(path("m18 8 4 4-4 4"), path("M2 12h20"), path("m6 8-4 4 4 4"));
   var ClockIcon = stroke(circle(12, 12, 10), path("M12 6v6l4 2"));
   var LanguagesIcon = stroke(path("m5 8 6 6"), path("m4 14 6-6 2-3"), path("M2 5h12"), path("M7 2h1"), path("m22 22-5-10-5 10"), path("M14 18h6"));
@@ -12392,7 +12396,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261023.11] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"9305eb8"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261024.1] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"4ec7053"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -15300,6 +15304,875 @@ ${hovered} {
     }
   });
 
+  // ldpp-css:src/plugins/customIdentity/styles.css
+  registerStyle("customIdentity", `.ldpp-identity-hidden {
+    display: none !important;
+}
+
+.ldpp-identity-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ldpp-identity-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.ldpp-identity-preview-box {
+    flex: none;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--ldpp-soft);
+    border: 1px solid var(--ldpp-line);
+}
+
+.ldpp-identity-preview {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ldpp-identity-source {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ldpp-identity-source > .ldpp-input {
+    width: 100%;
+}
+
+.ldpp-identity-crop {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 240px;
+}
+
+.ldpp-identity-crop[hidden] {
+    display: none;
+}
+
+.ldpp-identity-stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 8px;
+    background: var(--ldpp-soft);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.ldpp-identity-stage:active {
+    cursor: grabbing;
+}
+
+/* The circle the avatar is cut to, with the rest of the square dimmed. */
+.ldpp-identity-stage::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 0 999px rgb(0 0 0 / 45%);
+    outline: 2px solid rgb(255 255 255 / 85%);
+    outline-offset: -2px;
+    pointer-events: none;
+}
+
+.ldpp-identity-stage-img {
+    position: absolute;
+    max-width: none;
+    pointer-events: none;
+}
+
+.ldpp-identity-zoom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ldpp-identity-zoom > .ldpp-slider-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ldpp-identity-zoom .ldpp-slider {
+    flex: 1;
+}
+`);
+
+  // src/plugins/noWatermark/shadow.ts
+  var roots = new WeakMap;
+  var original = null;
+  var wrapper = null;
+  function shadowRootOf(el) {
+    return el.shadowRoot ?? roots.get(el) ?? null;
+  }
+  function outerHost(node) {
+    let el = node;
+    for (let root = el.getRootNode();root.host; root = el.getRootNode())
+      el = root.host;
+    return el;
+  }
+  function hookShadowRoots(onRoot) {
+    const proto = pageWindow.Element.prototype;
+    if (wrapper && proto.attachShadow === wrapper)
+      return;
+    const native = proto.attachShadow;
+    original = native;
+    wrapper = function(init) {
+      const root = native.call(this, init);
+      roots.set(this, root);
+      try {
+        onRoot(root);
+      } catch {}
+      return root;
+    };
+    proto.attachShadow = wrapper;
+  }
+  function unhookShadowRoots() {
+    const proto = pageWindow.Element.prototype;
+    if (wrapper && proto.attachShadow === wrapper && original)
+      proto.attachShadow = original;
+    wrapper = original = null;
+  }
+
+  // src/plugins/noWatermark/detect.ts
+  var realProbe = {
+    rect: (el) => el.getBoundingClientRect(),
+    style: (el, pseudo) => getComputedStyle(el, pseudo || null),
+    viewport: () => ({ width: window.innerWidth, height: window.innerHeight })
+  };
+  var SKIP = "[data-ldpp], ldpp-styles, ldpp-user-styles, #d-splash, .d-modal, .d-modal__backdrop, .modal-backdrop, .d-header-wrap, #reply-control, .loading-indicator-container, .pswp";
+  var INTERACTIVE = "button, a[href], input, textarea, select, iframe, [contenteditable], [tabindex]";
+  var EFFECTS = /snow|confetti|firework|particle|sakura|petal/i;
+  function currentAccount() {
+    try {
+      const user = pageWindow.Discourse?.__container__?.lookup("service:current-user");
+      if (user?.username)
+        return { username: String(user.username), id: String(user.id ?? "") };
+    } catch {}
+    try {
+      const preloaded = JSON.parse(document.getElementById("data-preloaded")?.dataset.preloaded ?? "{}");
+      const raw = preloaded.currentUser;
+      const user = typeof raw === "string" ? JSON.parse(raw) : raw;
+      if (user?.username)
+        return { username: String(user.username), id: String(user.id ?? "") };
+    } catch {}
+    return null;
+  }
+  function accountPattern(account) {
+    if (!account?.username)
+      return null;
+    const parts = [escapeRegExp(account.username)];
+    if (/^\d{3,}$/.test(account.id))
+      parts.push(`(?<!\\d)${account.id}(?!\\d)`);
+    return new RegExp(parts.join("|"), "i");
+  }
+  function imageUrls(value) {
+    return [...value.matchAll(/url\((["']?)(.*?)\1\)/g)].map((match) => match[2]);
+  }
+  function decodeSvgImages(urls) {
+    return urls.map((url) => {
+      const match = url.match(/^data:image\/svg\+xml(;base64)?[^,]*,(.*)$/i);
+      if (!match)
+        return "";
+      try {
+        return match[1] ? atob(match[2]) : decodeURIComponent(match[2]);
+      } catch {
+        return "";
+      }
+    }).join(`
+`);
+  }
+  var generated = (url) => /^(data|blob):/i.test(url);
+  function alphaOf(color) {
+    const match = color.match(/rgba?\(([^)]*)\)/);
+    if (!match)
+      return 1;
+    const parts = match[1].split(/[\s,/]+/).filter(Boolean);
+    if (parts.length < 4)
+      return 1;
+    const value = parts[3].endsWith("%") ? Number.parseFloat(parts[3]) / 100 : Number.parseFloat(parts[3]);
+    return Number.isFinite(value) ? value : 1;
+  }
+  function userStyleText() {
+    return Array.from(document.querySelectorAll("ldpp-user-styles style, style.stylus"), (style) => style.textContent ?? "").join(`
+`);
+  }
+
+  class Detector {
+    probe;
+    pattern;
+    userCss;
+    constructor(account, probe = realProbe) {
+      this.probe = probe;
+      this.pattern = accountPattern(account);
+      this.userCss = userStyleText();
+    }
+    covers(el, rect) {
+      const view = this.probe.viewport();
+      const width = Math.max(0, Math.min(rect.left + rect.width, view.width) - Math.max(rect.left, 0));
+      const height = Math.max(0, Math.min(rect.top + rect.height, view.height) - Math.max(rect.top, 0));
+      if (view.width * view.height > 0 && width * height / (view.width * view.height) >= 0.5)
+        return true;
+      const parent = el.parentElement;
+      if (!parent || rect.width * rect.height < 200 * 150)
+        return false;
+      const box = this.probe.rect(parent);
+      return rect.width >= box.width * 0.9 && rect.height >= box.height * 0.9;
+    }
+    mentions(...texts) {
+      return Boolean(this.pattern && texts.some((text) => text && this.pattern.test(text)));
+    }
+    ownImage(urls) {
+      return urls.some((url) => this.userCss.includes(url.slice(0, 200)));
+    }
+    check(el, pseudo = "") {
+      if (el.closest(SKIP) || EFFECTS.test(`${el.id} ${el.getAttribute("class") ?? ""}`))
+        return null;
+      const style = this.probe.style(el, pseudo);
+      if (style.display === "none" || style.visibility === "hidden")
+        return null;
+      if (pseudo && (!style.content || style.content === "none" || style.content === "normal"))
+        return null;
+      const hostRect = this.probe.rect(el);
+      const rect = pseudo ? this.pseudoRect(style, hostRect) : hostRect;
+      if (!rect)
+        return null;
+      const covers = this.covers(el, rect);
+      if (!covers && rect.width * rect.height < 300 * 150)
+        return null;
+      const urls = imageUrls(style.backgroundImage || "");
+      if (this.ownImage(urls))
+        return null;
+      const svgText = decodeSvgImages(urls);
+      const text = pseudo ? style.content.replace(/^["']|["']$/g, "") : el.childElementCount < 300 ? (el.textContent ?? "").slice(0, 4000) : "";
+      const passThrough = style.pointerEvents === "none";
+      const floating = /fixed|absolute|sticky/.test(style.position);
+      const faint = Number.parseFloat(style.opacity || "1") < 0.3 || text.trim() !== "" && alphaOf(style.color) < 0.3;
+      const blended = Boolean(style.mixBlendMode) && style.mixBlendMode !== "normal";
+      const tiled = urls.length > 0 && !/no-repeat/.test(style.backgroundRepeat || "");
+      const tile = tiled && urls.some(generated);
+      const drawn = el.tagName === "CANVAS" || el.tagName.toLowerCase() === "svg" && Boolean(el.querySelector("text, pattern"));
+      const named = this.mentions(text, svgText, pseudo ? "" : el.getAttribute("aria-label") ?? "");
+      const reasons = [];
+      if (named)
+        reasons.push("含你的用户名或 ID");
+      if (tile)
+        reasons.push(/<text[\s>]/i.test(svgText) ? "平铺的文字图片" : "平铺的生成图片");
+      if (drawn)
+        reasons.push(el.tagName === "CANVAS" ? "画布" : "SVG 图案");
+      if (faint)
+        reasons.push("近乎透明");
+      if (blended)
+        reasons.push(`混合模式 ${style.mixBlendMode}`);
+      if (passThrough)
+        reasons.push("不挡点击");
+      if (!pseudo && el.querySelector(INTERACTIVE))
+        return null;
+      const layer = covers && (named && (passThrough || faint || blended) || passThrough && floating && (tile || drawn) || passThrough && floating && (faint || blended) && (text.trim() !== "" || urls.length > 0));
+      if (layer)
+        return { el, pseudo, part: "layer", reasons: [...reasons, "铺满屏幕或容器"] };
+      if (!pseudo && tile && (named || /<text[\s>]/i.test(svgText)))
+        return { el, pseudo, part: "background", reasons: [...reasons, "画在容器背景里"] };
+      return null;
+    }
+    pseudoRect(style, host) {
+      if (!/fixed|absolute/.test(style.position))
+        return null;
+      const view = this.probe.viewport();
+      const base = style.position === "fixed" ? { left: 0, top: 0, width: view.width, height: view.height } : host;
+      const width = Number.parseFloat(style.width);
+      const height = Number.parseFloat(style.height);
+      return { left: base.left, top: base.top, width: Number.isFinite(width) ? width : base.width, height: Number.isFinite(height) ? height : base.height };
+    }
+    scan(root, out = [], host) {
+      const elements = root instanceof Element ? [root, ...root.querySelectorAll("*")] : [...root.querySelectorAll("*")];
+      for (const el of elements) {
+        const finding = this.check(el);
+        if (finding)
+          out.push(host ? { ...finding, el: host } : finding);
+        if (!finding && this.pseudoCandidate(el)) {
+          for (const pseudo of ["::before", "::after"]) {
+            const inPseudo = this.check(el, pseudo);
+            if (inPseudo)
+              out.push(host ? { ...inPseudo, el: host, pseudo: "" } : inPseudo);
+          }
+        }
+        const shadow = shadowRootOf(el);
+        if (shadow)
+          this.scan(shadow, out, host ?? el);
+      }
+      return out;
+    }
+    pseudoCandidate(el) {
+      const parent = el.parentElement;
+      if (el === document.documentElement || el === document.body || parent === document.body || parent === document.documentElement || el.id)
+        return true;
+      const rect = this.probe.rect(el);
+      const view = this.probe.viewport();
+      return rect.width >= view.width * 0.6 && rect.height >= view.height * 0.5;
+    }
+  }
+  var escapeIdent = (value) => typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(value) : value.replace(/[^\w-]/g, (char) => `\\${char}`);
+  function selectorFor(el) {
+    const parts = [];
+    for (let node = el;node && node !== document.documentElement; node = node.parentElement) {
+      if (node === document.body) {
+        parts.unshift("body");
+        continue;
+      }
+      if (node.id && document.querySelectorAll(`#${escapeIdent(node.id)}`).length === 1) {
+        parts.unshift(`#${escapeIdent(node.id)}`);
+        return parts.join(" > ");
+      }
+      const parent = node.parentElement;
+      const index = parent ? Array.prototype.indexOf.call(parent.children, node) + 1 : 1;
+      const classes = Array.from(node.classList).filter((name) => !/^ember\d/.test(name)).slice(0, 2).map((name) => `.${escapeIdent(name)}`).join("");
+      parts.unshift(`${node.tagName.toLowerCase()}${classes}:nth-child(${index})`);
+    }
+    parts.unshift("html");
+    return parts.join(" > ");
+  }
+  function hidingCss(findings) {
+    const scope = "html:not(#ldpp-no-watermark)";
+    return findings.map((finding) => {
+      const selector = selectorFor(finding.el);
+      const target = selector.startsWith("html") ? selector.replace(/^html/, scope) : `${scope} ${selector}`;
+      if (finding.pseudo)
+        return `${target}${finding.pseudo} { content: none !important; background: none !important; }`;
+      if (finding.part === "background")
+        return `${target} { background-image: none !important; }`;
+      return `${target} { filter: opacity(0) !important; clip-path: inset(50%) !important; }`;
+    }).join(`
+`);
+  }
+  function describe(el) {
+    const classes = Array.from(el.classList).slice(0, 2).map((name) => `.${name}`).join("");
+    return `<${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}${classes}>`;
+  }
+
+  // src/plugins/customIdentity/paint.ts
+  var MARK = "data-ldpp-identity";
+  var ORIG = "data-ldpp-identity-orig";
+  var ORIG_SET = "data-ldpp-identity-srcset";
+  var NAME_CLASS = "ldpp-identity-name";
+  var HIDE_CLASS = "ldpp-identity-hidden";
+  var OWN_UI = ".d-header, .user-menu, .menu-panel";
+  var NAME_SPANS = ":scope > .full-name, :scope > .username";
+  var ZOOM_MIN = 1;
+  var ZOOM_MAX = 4;
+  function cropRect(w, h, zoom, cx, cy) {
+    const z = clamp(zoom, ZOOM_MIN, ZOOM_MAX);
+    const side = Math.min(w, h) / z;
+    const x = clamp(cx, side / 2, Math.max(side / 2, w - side / 2));
+    const y = clamp(cy, side / 2, Math.max(side / 2, h - side / 2));
+    return { z, side, x, y };
+  }
+  function avatarOwner(src) {
+    const match = /\/user_avatar\/[^/]+\/([^/]+)\/\d+\//.exec(src);
+    if (!match)
+      return null;
+    try {
+      return decodeURIComponent(match[1]).toLowerCase();
+    } catch {
+      return match[1].toLowerCase();
+    }
+  }
+  function usableAvatar(raw) {
+    const value = raw.trim();
+    if (!value)
+      return null;
+    if (value.startsWith("data:image/"))
+      return value;
+    try {
+      const { protocol } = new URL(value);
+      return protocol === "https:" || protocol === "http:" ? value : null;
+    } catch {
+      return null;
+    }
+  }
+  var painted = new WeakMap;
+  function restoreImg(img) {
+    if (!img.hasAttribute(MARK))
+      return;
+    const orig = img.getAttribute(ORIG);
+    const set = img.getAttribute(ORIG_SET);
+    const ours = img.getAttribute("src") === painted.get(img);
+    img.removeAttribute(MARK);
+    img.removeAttribute(ORIG);
+    img.removeAttribute(ORIG_SET);
+    painted.delete(img);
+    if (!ours)
+      return;
+    if (set)
+      img.setAttribute("srcset", set);
+    if (orig != null)
+      img.src = orig;
+  }
+  function officialSrc(img) {
+    const current = img.getAttribute("src") ?? "";
+    if (!img.hasAttribute(MARK) || current !== painted.get(img))
+      return current;
+    return img.getAttribute(ORIG) ?? "";
+  }
+  function paintImg(img, url) {
+    const current = img.getAttribute("src") ?? "";
+    if (!img.hasAttribute(MARK) || current !== painted.get(img)) {
+      img.setAttribute(ORIG, current);
+      const set = img.getAttribute("srcset");
+      if (set)
+        img.setAttribute(ORIG_SET, set);
+      else
+        img.removeAttribute(ORIG_SET);
+    }
+    img.setAttribute(MARK, "");
+    painted.set(img, url);
+    if (img.hasAttribute("srcset"))
+      img.removeAttribute("srcset");
+    img.referrerPolicy = "no-referrer";
+    if (current !== url)
+      img.src = url;
+  }
+  function paintAvatars(root, { username, avatar, everywhere }) {
+    for (const img of root.querySelectorAll(`img[src*="/user_avatar/"], img[${MARK}]`)) {
+      const mine = avatarOwner(officialSrc(img)) === username && (everywhere || img.closest(OWN_UI));
+      if (mine && avatar)
+        paintImg(img, avatar);
+      else
+        restoreImg(img);
+    }
+  }
+  function unpaintNames(names) {
+    for (const el of names.querySelectorAll(`:scope > .${NAME_CLASS}`))
+      el.remove();
+    for (const el of names.querySelectorAll(`:scope > .${HIDE_CLASS}`))
+      el.classList.remove(HIDE_CLASS);
+  }
+  function paintNames(root, { username, name }) {
+    for (const names of root.querySelectorAll(".topic-post .names, .topic-body .names")) {
+      const official = [...names.querySelectorAll(NAME_SPANS)].filter((el) => !el.classList.contains(NAME_CLASS));
+      const link = official.map((el) => el.querySelector("a[data-user-card]")).find(Boolean);
+      const mine = link?.dataset.userCard?.toLowerCase() === username;
+      if (!name || !mine || !link) {
+        unpaintNames(names);
+        continue;
+      }
+      let own = names.querySelector(`:scope > .${NAME_CLASS}`);
+      if (!own) {
+        const anchor = link.cloneNode(false);
+        own = document.createElement("span");
+        own.className = `first ${NAME_CLASS}`;
+        own.setAttribute("data-ldpp", "identity");
+        own.append(anchor);
+        official[0].before(own);
+      }
+      const anchor = own.querySelector("a");
+      if (anchor && anchor.textContent !== name)
+        anchor.textContent = name;
+      for (const el of official)
+        el.classList.add(HIDE_CLASS);
+    }
+  }
+  function paintIdentity(root, identity) {
+    paintAvatars(root, identity);
+    paintNames(root, identity);
+  }
+  function restoreIdentity(root) {
+    for (const img of root.querySelectorAll(`img[${MARK}]`))
+      restoreImg(img);
+    for (const names of root.querySelectorAll(`.names:has(> .${NAME_CLASS}), .names:has(> .${HIDE_CLASS})`))
+      unpaintNames(names);
+  }
+
+  // src/plugins/customIdentity/editor.ts
+  var SOURCE_PX = 640;
+  var AVATAR_PX = 256;
+  var ZOOM_STEP = 1.08;
+  function encode(canvas) {
+    const url = canvas.toDataURL("image/webp", 0.92);
+    return url.startsWith("data:image/") ? url : null;
+  }
+  function draw(width, height, paint) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx)
+      return null;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    paint(ctx);
+    return encode(canvas);
+  }
+  async function bitmap(blob) {
+    try {
+      return await createImageBitmap(blob);
+    } catch {
+      return null;
+    }
+  }
+  async function capBlob(blob) {
+    const bmp = await bitmap(blob);
+    if (!bmp)
+      return null;
+    const scale = Math.min(1, SOURCE_PX / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * scale));
+    const height = Math.max(1, Math.round(bmp.height * scale));
+    const url = draw(w, height, (ctx) => ctx.drawImage(bmp, 0, 0, w, height));
+    bmp.close();
+    return url;
+  }
+  async function fetchBlob(url) {
+    try {
+      if (url.startsWith("data:"))
+        return await (await fetch(url)).blob();
+      const res = await httpRequest({ url, responseType: "arraybuffer", timeout: 20000 });
+      if (!res.ok || !res.buffer)
+        return null;
+      return new Blob([res.buffer], { type: res.contentType.split(";")[0] || "image/png" });
+    } catch {
+      return null;
+    }
+  }
+  async function bake(src, x, y, zoom) {
+    const blob = await fetchBlob(src);
+    const bmp = blob && await bitmap(blob);
+    if (!bmp)
+      return null;
+    const r = cropRect(bmp.width, bmp.height, zoom, x * bmp.width, y * bmp.height);
+    const url = draw(AVATAR_PX, AVATAR_PX, (ctx) => ctx.drawImage(bmp, r.x - r.side / 2, r.y - r.side / 2, r.side, r.side, 0, 0, AVATAR_PX, AVATAR_PX));
+    bmp.close();
+    return url;
+  }
+  function imageFile(data) {
+    if (!data)
+      return null;
+    for (const file of data.files)
+      if (file.type.startsWith("image/"))
+        return file;
+    for (const item of data.items)
+      if (item.kind === "file" && item.type.startsWith("image/"))
+        return item.getAsFile();
+    return null;
+  }
+  function dragsImage(data) {
+    return [...data?.items ?? []].some((item) => item.kind === "file" && item.type.startsWith("image/"));
+  }
+  function AvatarEditor(store) {
+    let generation = 0;
+    let bakeTimer;
+    let natural = null;
+    let pos = { x: store.cropX, y: store.cropY, zoom: store.cropZoom };
+    let drag = null;
+    const preview = h("img", { class: "ldpp-identity-preview", alt: "", referrerPolicy: "no-referrer" });
+    const status = h("div", { class: "ldpp-identity-status" });
+    const input = TextInput({ value: store.avatarLink, placeholder: "粘贴图片，或填图片地址 https://…", onChange: (value) => void useLink(value) });
+    const stageImg = h("img", { class: "ldpp-identity-stage-img", alt: "", draggable: false });
+    const stage = h("div", { class: "ldpp-identity-stage", title: "拖动选择位置，滚轮缩放" }, stageImg);
+    const zoomInput = h("input", { type: "range", class: "ldpp-slider", min: String(ZOOM_MIN), max: String(ZOOM_MAX), step: "0.05", attrs: { "aria-label": "缩放" } });
+    const zoomValue = h("output", { class: "ldpp-slider-value" });
+    const crop = h("div", { class: "ldpp-identity-crop" }, stage, h("div", { class: "ldpp-identity-zoom" }, h("span", { class: "ldpp-slider-wrap" }, zoomInput, zoomValue), Button("复位", { small: true, onClick: () => commit(0.5, 0.5, 1, true) })), h("p", { class: "ldpp-muted" }, "拖动图片选择位置，滚轮或滑块缩放；圆圈就是头像显示的范围。"));
+    function setStatus(text, kind = "info") {
+      status.replaceChildren(text ? Hint(text, kind) : "");
+    }
+    function layoutStage() {
+      if (!natural)
+        return;
+      const r = cropRect(natural.w, natural.h, pos.zoom, pos.x * natural.w, pos.y * natural.h);
+      stageImg.style.width = `${natural.w / r.side * 100}%`;
+      stageImg.style.height = `${natural.h / r.side * 100}%`;
+      stageImg.style.left = `${(0.5 - r.x / r.side) * 100}%`;
+      stageImg.style.top = `${(0.5 - r.y / r.side) * 100}%`;
+      zoomInput.value = String(r.z);
+      zoomValue.textContent = `${Math.round(r.z * 100)}%`;
+    }
+    function render() {
+      const shown = usableAvatar(store.avatarUrl);
+      preview.hidden = !shown;
+      if (shown && preview.getAttribute("src") !== shown)
+        preview.src = shown;
+      input.value = store.avatarLink;
+      input.placeholder = store.avatarSource && !store.avatarLink ? "正在用粘贴的图片；填图片地址可替换" : "粘贴图片，或填图片地址 https://…";
+      crop.hidden = !store.avatarSource;
+      if (!store.avatarSource) {
+        natural = null;
+        stageImg.removeAttribute("src");
+        return;
+      }
+      if (stageImg.getAttribute("src") !== store.avatarSource) {
+        natural = null;
+        stageImg.src = store.avatarSource;
+      }
+      layoutStage();
+    }
+    function place(x, y, zoom) {
+      if (!natural) {
+        pos = { x, y, zoom: clamp(zoom, ZOOM_MIN, ZOOM_MAX) };
+        return;
+      }
+      const r = cropRect(natural.w, natural.h, zoom, x * natural.w, y * natural.h);
+      pos = { x: r.x / natural.w, y: r.y / natural.h, zoom: r.z };
+      layoutStage();
+    }
+    function save() {
+      store.cropX = pos.x;
+      store.cropY = pos.y;
+      store.cropZoom = pos.zoom;
+      const gen = generation;
+      const src = store.avatarSource;
+      bake(src, pos.x, pos.y, pos.zoom).then((url) => {
+        if (!url || gen !== generation || src !== store.avatarSource)
+          return;
+        store.avatarUrl = url;
+        render();
+      });
+    }
+    function commit(x, y, zoom, now = false) {
+      place(x, y, zoom);
+      clearTimeout(bakeTimer);
+      if (now)
+        save();
+      else
+        bakeTimer = setTimeout(save, 120);
+    }
+    async function adopt(source, link) {
+      const gen = ++generation;
+      const baked = await bake(source, 0.5, 0.5, 1);
+      if (gen !== generation || !baked)
+        return false;
+      Object.assign(store, { avatarSource: source, avatarLink: link, avatarUrl: baked, cropX: 0.5, cropY: 0.5, cropZoom: 1 });
+      pos = { x: 0.5, y: 0.5, zoom: 1 };
+      render();
+      return true;
+    }
+    async function useBlob(blob) {
+      setStatus("正在读取图片…");
+      const source = await capBlob(blob);
+      if (!source || !await adopt(source, "")) {
+        setStatus("无法读取这张图片。", "warning");
+        return;
+      }
+      setStatus("");
+    }
+    async function useLink(raw) {
+      const link = raw.trim();
+      if (!link) {
+        clear();
+        return;
+      }
+      const url = usableAvatar(link);
+      if (!url) {
+        setStatus("请填 http(s) 图片地址或 data:image 开头的内容。", "warning");
+        return;
+      }
+      setStatus("正在读取图片…");
+      const gen = ++generation;
+      const blob = await fetchBlob(url);
+      const source = blob && await capBlob(blob);
+      if (gen !== generation)
+        return;
+      if (source && await adopt(source, link.startsWith("data:") ? "" : link)) {
+        setStatus("");
+        return;
+      }
+      ++generation;
+      Object.assign(store, { avatarUrl: url, avatarLink: link, avatarSource: "", cropX: 0.5, cropY: 0.5, cropZoom: 1 });
+      render();
+      setStatus("图片读取失败，已直接使用这个地址（无法裁剪）；如果头像不显示，请换个地址或粘贴图片。", "warning");
+    }
+    function clear() {
+      ++generation;
+      clearTimeout(bakeTimer);
+      Object.assign(store, { avatarUrl: "", avatarLink: "", avatarSource: "", cropX: 0.5, cropY: 0.5, cropZoom: 1 });
+      pos = { x: 0.5, y: 0.5, zoom: 1 };
+      setStatus("");
+      render();
+    }
+    async function pick() {
+      try {
+        const [file] = await pickFiles("image/*");
+        await useBlob(file);
+      } catch (error) {
+        if (!isAbortError(error))
+          setStatus("无法读取这张图片。", "warning");
+      }
+    }
+    stageImg.addEventListener("load", () => {
+      natural = { w: stageImg.naturalWidth, h: stageImg.naturalHeight };
+      layoutStage();
+    });
+    stage.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0)
+        return;
+      event.preventDefault();
+      stage.setPointerCapture(event.pointerId);
+      drag = { px: event.clientX, py: event.clientY, x: pos.x, y: pos.y };
+    });
+    stage.addEventListener("pointermove", (event) => {
+      if (!drag || !natural)
+        return;
+      const size = stage.clientWidth;
+      if (!size)
+        return;
+      const { side } = cropRect(natural.w, natural.h, pos.zoom, drag.x * natural.w, drag.y * natural.h);
+      place(drag.x - (event.clientX - drag.px) * side / size / natural.w, drag.y - (event.clientY - drag.py) * side / size / natural.h, pos.zoom);
+    });
+    const endDrag = () => {
+      if (!drag)
+        return;
+      drag = null;
+      commit(pos.x, pos.y, pos.zoom, true);
+    };
+    stage.addEventListener("pointerup", endDrag);
+    stage.addEventListener("pointercancel", endDrag);
+    stage.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      commit(pos.x, pos.y, pos.zoom * (event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP));
+    }, { passive: false });
+    zoomInput.addEventListener("input", () => commit(pos.x, pos.y, Number(zoomInput.value)));
+    const root = h("div", { class: "ldpp-identity-editor" }, h("div", { class: "ldpp-identity-row" }, h("div", { class: "ldpp-identity-preview-box" }, preview), h("div", { class: "ldpp-identity-source" }, input, h("div", { class: "ldpp-row-actions" }, Button("选择图片", { small: true, onClick: () => void pick() }), Button("清除头像", { small: true, kind: "ghost", onClick: clear })))), status, crop);
+    const takeImage = (event) => {
+      const file = imageFile("clipboardData" in event ? event.clipboardData : event.dataTransfer);
+      if (!file)
+        return;
+      event.preventDefault();
+      useBlob(file);
+    };
+    root.addEventListener("paste", takeImage);
+    root.addEventListener("dragover", (event) => {
+      if (dragsImage(event.dataTransfer))
+        event.preventDefault();
+    });
+    root.addEventListener("drop", takeImage);
+    render();
+    return root;
+  }
+
+  // src/plugins/customIdentity/index.ts
+  var SIZE_STYLE = "customIdentity-size";
+  var SIZE_DEFAULT = 32;
+  var settings15 = definePluginSettings({
+    avatar: {
+      type: 5 /* COMPONENT */,
+      description: "头像",
+      render: () => AvatarEditor(settings15.store)
+    },
+    displayName: {
+      type: 0 /* STRING */,
+      description: "显示名：替换话题楼层里自己的名字，留空保持原样。",
+      placeholder: "楼层里显示的名字",
+      default: ""
+    },
+    everywhere: {
+      type: 2 /* BOOLEAN */,
+      description: "头像也替换话题楼层、列表、用户卡片等处（关闭则只换顶栏和用户菜单）。",
+      default: true
+    },
+    headerSize: {
+      type: 4 /* SLIDER */,
+      description: "顶栏头像大小（站点默认 32px）",
+      min: 24,
+      max: 44,
+      step: 1,
+      unit: "px",
+      default: SIZE_DEFAULT
+    },
+    avatarUrl: { type: 6 /* CUSTOM */, default: "" },
+    avatarLink: { type: 6 /* CUSTOM */, default: "" },
+    avatarSource: { type: 6 /* CUSTOM */, default: "" },
+    cropX: { type: 6 /* CUSTOM */, default: 0.5 },
+    cropY: { type: 6 /* CUSTOM */, default: 0.5 },
+    cropZoom: { type: 6 /* CUSTOM */, default: 1 }
+  });
+  var active5 = false;
+  var observer5 = null;
+  var frame3 = 0;
+  function apply2() {
+    if (!active5)
+      return;
+    const username = currentAccount()?.username.toLowerCase();
+    if (!username)
+      return;
+    paintIdentity(document, {
+      username,
+      avatar: usableAvatar(String(settings15.store.avatarUrl ?? "")),
+      name: settings15.store.displayName.trim(),
+      everywhere: settings15.store.everywhere
+    });
+  }
+  function applySize() {
+    const size = Math.round(settings15.store.headerSize);
+    if (!active5 || size === SIZE_DEFAULT) {
+      unregisterStyle(SIZE_STYLE);
+      return;
+    }
+    registerStyle(SIZE_STYLE, `.d-header .header-dropdown-toggle.current-user img.avatar {
+    width: ${size}px !important;
+    height: ${size}px !important;
+}`);
+  }
+  function schedule4() {
+    if (frame3)
+      return;
+    frame3 = requestAnimationFrame(() => {
+      frame3 = 0;
+      apply2();
+    });
+  }
+  function onMutations(mutations) {
+    for (const mutation of mutations) {
+      if (mutation.type === "childList")
+        return schedule4();
+      const el = mutation.target;
+      if (el.hasAttribute(MARK) || el.getAttribute("src")?.includes("/user_avatar/"))
+        return schedule4();
+    }
+  }
+  var customIdentity_default = definePlugin({
+    name: "CustomIdentity",
+    displayName: "自定义头像与名字",
+    description: "把自己的头像换成任意图片（网址、粘贴或拖入，可拖动缩放裁剪），把楼层里的名字换成自定义显示名，还能调顶栏头像大小；只在你的浏览器里显示，别人看到的不变（对照 Void++ CustomSidebarIdentity）。",
+    tags: ["privacy"],
+    icon: UserRoundPenIcon,
+    enabledByDefault: false,
+    settings: settings15,
+    managedStyle: "customIdentity",
+    start() {
+      active5 = true;
+      observer5 = new MutationObserver(onMutations);
+      observer5.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });
+      applySize();
+      apply2();
+    },
+    stop() {
+      active5 = false;
+      observer5?.disconnect();
+      observer5 = null;
+      cancelAnimationFrame(frame3);
+      frame3 = 0;
+      applySize();
+      restoreIdentity(document);
+    },
+    onSettingsChange() {
+      applySize();
+      apply2();
+    }
+  });
+
   // ldpp-css:src/plugins/recentTopics/styles.css
   registerStyle("recentTopics", `.ldpp-recent-overlay {
     position: fixed;
@@ -15475,7 +16348,7 @@ ${hovered} {
 
   // src/plugins/recentTopics/index.ts
   var KEY2 = "LDPP.recentTopics";
-  var settings15 = definePluginSettings({
+  var settings16 = definePluginSettings({
     maxItems: {
       type: 4 /* SLIDER */,
       description: "切换器里最多显示几个话题。",
@@ -15546,7 +16419,7 @@ ${hovered} {
         save(patchRecent(load(), item.id, { title: text }));
       });
     }
-    const summary = settings15.store.showSummary ? Summaries.get(item.id)?.[0]?.summary : undefined;
+    const summary = settings16.store.showSummary ? Summaries.get(item.id)?.[0]?.summary : undefined;
     const meta = [item.id === currentId ? "当前" : timeAgo(item.visitedAt), item.floor > 1 ? `读到 #${item.floor}` : ""].filter(Boolean).join(" · ");
     return h("button", {
       type: "button",
@@ -15573,7 +16446,7 @@ ${hovered} {
     }
   }
   function openSwitcher() {
-    items = load().slice(0, settings15.store.maxItems);
+    items = load().slice(0, settings16.store.maxItems);
     if (!items.length) {
       showToast("还没有最近打开的话题。", "info", { key: "recent-topics" });
       return;
@@ -15651,7 +16524,7 @@ ${hovered} {
     if (!overlay || !holding || event.key !== "Control")
       return;
     holding = false;
-    if (settings15.store.releaseToOpen)
+    if (settings16.store.releaseToOpen)
       openAt(selected);
   }
   function onBlur() {
@@ -15665,7 +16538,7 @@ ${hovered} {
     tags: ["reading"],
     icon: LayoutGridIcon,
     enabledByDefault: true,
-    settings: settings15,
+    settings: settings16,
     start() {
       listeners6 = new AbortController;
       const { signal } = listeners6;
@@ -15697,7 +16570,7 @@ ${hovered} {
   function previewSound() {
     playSound();
   }
-  var settings16 = definePluginSettings({
+  var settings17 = definePluginSettings({
     sound: {
       type: 2 /* BOOLEAN */,
       description: "完成或失败时播放提示音。",
@@ -15770,7 +16643,7 @@ ${hovered} {
     }
   }
   async function playSound() {
-    const url = settings16.store.soundUrl.trim();
+    const url = settings17.store.soundUrl.trim();
     try {
       if (url)
         await new Audio(url).play();
@@ -15847,7 +16720,7 @@ ${message ?? ""}`.trim(),
     }
   }
   async function renderFavicon() {
-    const state = settings16.store.favicon && active5 ? tabState(running2.size, finished) : "idle";
+    const state = settings17.store.favicon && active6 ? tabState(running2.size, finished) : "idle";
     if (state === shownState)
       return;
     shownState = state;
@@ -15871,7 +16744,7 @@ ${message ?? ""}`.trim(),
     finished = null;
     renderFavicon();
   }
-  var active5 = false;
+  var active6 = false;
   var completionAlert_default = definePlugin({
     name: "CompletionAlert",
     displayName: "后台完成提醒",
@@ -15879,13 +16752,13 @@ ${message ?? ""}`.trim(),
     tags: ["ai"],
     icon: BellIcon,
     enabledByDefault: true,
-    settings: settings16,
+    settings: settings17,
     start() {
-      active5 = true;
+      active6 = true;
       document.addEventListener("visibilitychange", onVisible);
     },
     stop() {
-      active5 = false;
+      active6 = false;
       running2.clear();
       finished = null;
       document.removeEventListener("visibilitychange", onVisible);
@@ -15907,11 +16780,11 @@ ${message ?? ""}`.trim(),
         if (state !== "cancel" && hidden)
           finished = state === "error" || finished === "error" ? "error" : "done";
         renderFavicon();
-        if (state === "cancel" || settings16.store.onlyHidden && !hidden)
+        if (state === "cancel" || settings17.store.onlyHidden && !hidden)
           return;
-        if (settings16.store.sound)
+        if (settings17.store.sound)
           playSound();
-        if (settings16.store.systemNotification)
+        if (settings17.store.systemNotification)
           systemNotify(kind, topicId, state === "done", message);
       }
     }
@@ -16351,7 +17224,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   var DRAIN_DELAY_MS = 300;
   var FIX_HIGHLIGHT = "ldpp-title-fix";
   var profileOptions = () => [{ label: "跟随默认 AI 配置", value: "" }, ...profileChoices()];
-  var settings17 = definePluginSettings({
+  var settings18 = definePluginSettings({
     autoRewrite: {
       type: 2 /* BOOLEAN */,
       description: "判定为标题党后自动读取首帖并改写标题（关闭时可点击 ✦ 按钮手动改写）。",
@@ -16431,7 +17304,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   var fixTimer = null;
   var fixDraining = false;
   function inScope() {
-    scopeRegex ??= compileScope(checkScope(settings17.store.scope).rules);
+    scopeRegex ??= compileScope(checkScope(settings18.store.scope).rules);
     return scopeMatches(scopeRegex, location.href);
   }
   function stateFor(topicId, title) {
@@ -16442,7 +17315,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     return stateFor(topicId, title) ?? { originalTitle: title, updatedAt: "" };
   }
   function shownFixes(state) {
-    return settings17.store.fixTypos && state && !state.rewrittenTitle ? state.fixes ?? [] : [];
+    return settings18.store.fixTypos && state && !state.rewrittenTitle ? state.fixes ?? [] : [];
   }
   function errorFor(topicId, title) {
     const error = errors2.get(topicId);
@@ -16555,8 +17428,8 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     }, DRAIN_DELAY_MS);
   }
   async function judgeBatch(batch) {
-    const profile = getProfile(String(settings17.store.judgeProfile ?? "") || undefined);
-    const text = await chatWithRetry(profile, buildJudgeMessages(settings17.store.judgePrompt, batch));
+    const profile = getProfile(String(settings18.store.judgeProfile ?? "") || undefined);
+    const text = await chatWithRetry(profile, buildJudgeMessages(settings18.store.judgePrompt, batch));
     const results = new Map(parseJudge(text).map((result) => [result.topicId, result]));
     const now = new Date().toISOString();
     const updates = {};
@@ -16631,8 +17504,8 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     }, DRAIN_DELAY_MS);
   }
   async function fixBatch(batch) {
-    const profile = getProfile(String(settings17.store.judgeProfile ?? "") || undefined);
-    const found = parseFixes(await chatWithRetry(profile, buildFixMessages(settings17.store.fixPrompt, batch)));
+    const profile = getProfile(String(settings18.store.judgeProfile ?? "") || undefined);
+    const found = parseFixes(await chatWithRetry(profile, buildFixMessages(settings18.store.fixPrompt, batch)));
     const now = new Date().toISOString();
     const updates = {};
     for (const input of batch) {
@@ -16650,7 +17523,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       return;
     fixDraining = true;
     try {
-      while (fixQueue.size && isPluginEnabled("DeArrow") && settings17.store.fixTypos) {
+      while (fixQueue.size && isPluginEnabled("DeArrow") && settings18.store.fixTypos) {
         const picked = Array.from(fixQueue.values()).slice(0, FIX_BATCH);
         for (const item of picked) {
           fixQueue.delete(item.topicId);
@@ -16710,7 +17583,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
         await judgeBatch([input]);
       if (automatic && stateFor(topicId, title)?.verdict !== true)
         return;
-      const profile = requireProfile(getProfile(String(settings17.store.rewriteProfile ?? "") || undefined));
+      const profile = requireProfile(getProfile(String(settings18.store.rewriteProfile ?? "") || undefined));
       setPhase("正在读取首帖…");
       const content = await buildTopicContent(topicId, {
         firstPostOnly: true,
@@ -16723,7 +17596,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
         throw new Error(profile.imageInput ? "首帖只有图片，且图片准备失败" : "首帖只有图片，请在改写所用的 AI 配置中开启图片输入");
       }
       setPhase("正在改写标题…");
-      const messages = buildRewriteMessages(settings17.store.rewritePrompt, title, content.text, images.length);
+      const messages = buildRewriteMessages(settings18.store.rewritePrompt, title, content.text, images.length);
       messages[1].content = userContent(messages[1].content, images);
       const rewritten = parseRewrite(await chatWithRetry(profile, messages));
       const current = DeArrowStates.get(topicId);
@@ -16798,14 +17671,14 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       } else if (marked2.delete(row.id)) {
         setTitleMark(row.id, null);
       }
-      if (automatic && !row.hidden && settings17.store.fixTypos && !state?.rewrittenTitle && !state?.fixCheckedAt && !fixing.has(row.id) && fixFailed.get(row.id) !== row.originalTitle && !heldElsewhere("fix", row.id)) {
+      if (automatic && !row.hidden && settings18.store.fixTypos && !state?.rewrittenTitle && !state?.fixCheckedAt && !fixing.has(row.id) && fixFailed.get(row.id) !== row.originalTitle && !heldElsewhere("fix", row.id)) {
         fixQueue.set(row.id, { topicId: row.id, title: row.originalTitle });
       }
       if (!automatic || row.hidden || errorFor(row.id, row.originalTitle))
         continue;
       if (typeof state?.verdict !== "boolean" && !judging.has(row.id) && !rewriting.has(row.id) && !heldElsewhere("judge", row.id)) {
         judgeQueue.set(row.id, { topicId: row.id, title: row.originalTitle });
-      } else if (settings17.store.autoRewrite && state?.verdict === true && !state.rewrittenTitle && !rewriting.has(row.id) && !heldElsewhere("rewrite", row.id) && !autoQueue.some((item) => item.topicId === row.id)) {
+      } else if (settings18.store.autoRewrite && state?.verdict === true && !state.rewrittenTitle && !rewriting.has(row.id) && !heldElsewhere("rewrite", row.id) && !autoQueue.some((item) => item.topicId === row.id)) {
         autoQueue.push({ topicId: row.id, title: row.originalTitle });
       }
     }
@@ -16821,7 +17694,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     description: "在作用范围内的话题列表里自动用 AI 判断标题党，并根据首帖改写成具体中立的标题；其他列表也显示按钮和已改写的标题，可手动改写。还可修正标题里的错别字，改过的字带点状下划线。悬停 ✦ 按钮可临时查看原标题。改写和修正只影响显示，屏蔽规则始终匹配原标题。",
     tags: ["ai", "topics"],
     icon: DeArrowIcon,
-    settings: settings17,
+    settings: settings18,
     start() {
       scopeRegex = null;
       registerDecorator({ id: "dearrow", order: 20, render: renderButton2 });
@@ -16846,9 +17719,9 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     },
     onSettingsChange() {
       scopeRegex = null;
-      if (!settings17.store.autoRewrite)
+      if (!settings18.store.autoRewrite)
         autoQueue.length = 0;
-      if (!settings17.store.fixTypos)
+      if (!settings18.store.fixTypos)
         fixQueue.clear();
       schedule();
     },
@@ -16963,258 +17836,6 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
 }
 `);
 
-  // src/plugins/noWatermark/shadow.ts
-  var roots = new WeakMap;
-  var original = null;
-  var wrapper = null;
-  function shadowRootOf(el) {
-    return el.shadowRoot ?? roots.get(el) ?? null;
-  }
-  function outerHost(node) {
-    let el = node;
-    for (let root = el.getRootNode();root.host; root = el.getRootNode())
-      el = root.host;
-    return el;
-  }
-  function hookShadowRoots(onRoot) {
-    const proto = pageWindow.Element.prototype;
-    if (wrapper && proto.attachShadow === wrapper)
-      return;
-    const native = proto.attachShadow;
-    original = native;
-    wrapper = function(init) {
-      const root = native.call(this, init);
-      roots.set(this, root);
-      try {
-        onRoot(root);
-      } catch {}
-      return root;
-    };
-    proto.attachShadow = wrapper;
-  }
-  function unhookShadowRoots() {
-    const proto = pageWindow.Element.prototype;
-    if (wrapper && proto.attachShadow === wrapper && original)
-      proto.attachShadow = original;
-    wrapper = original = null;
-  }
-
-  // src/plugins/noWatermark/detect.ts
-  var realProbe = {
-    rect: (el) => el.getBoundingClientRect(),
-    style: (el, pseudo) => getComputedStyle(el, pseudo || null),
-    viewport: () => ({ width: window.innerWidth, height: window.innerHeight })
-  };
-  var SKIP = "[data-ldpp], ldpp-styles, ldpp-user-styles, #d-splash, .d-modal, .d-modal__backdrop, .modal-backdrop, .d-header-wrap, #reply-control, .loading-indicator-container, .pswp";
-  var INTERACTIVE = "button, a[href], input, textarea, select, iframe, [contenteditable], [tabindex]";
-  var EFFECTS = /snow|confetti|firework|particle|sakura|petal/i;
-  function currentAccount() {
-    try {
-      const user = pageWindow.Discourse?.__container__?.lookup("service:current-user");
-      if (user?.username)
-        return { username: String(user.username), id: String(user.id ?? "") };
-    } catch {}
-    try {
-      const preloaded = JSON.parse(document.getElementById("data-preloaded")?.dataset.preloaded ?? "{}");
-      const raw = preloaded.currentUser;
-      const user = typeof raw === "string" ? JSON.parse(raw) : raw;
-      if (user?.username)
-        return { username: String(user.username), id: String(user.id ?? "") };
-    } catch {}
-    return null;
-  }
-  function accountPattern(account) {
-    if (!account?.username)
-      return null;
-    const parts = [escapeRegExp(account.username)];
-    if (/^\d{3,}$/.test(account.id))
-      parts.push(`(?<!\\d)${account.id}(?!\\d)`);
-    return new RegExp(parts.join("|"), "i");
-  }
-  function imageUrls(value) {
-    return [...value.matchAll(/url\((["']?)(.*?)\1\)/g)].map((match) => match[2]);
-  }
-  function decodeSvgImages(urls) {
-    return urls.map((url) => {
-      const match = url.match(/^data:image\/svg\+xml(;base64)?[^,]*,(.*)$/i);
-      if (!match)
-        return "";
-      try {
-        return match[1] ? atob(match[2]) : decodeURIComponent(match[2]);
-      } catch {
-        return "";
-      }
-    }).join(`
-`);
-  }
-  var generated = (url) => /^(data|blob):/i.test(url);
-  function alphaOf(color) {
-    const match = color.match(/rgba?\(([^)]*)\)/);
-    if (!match)
-      return 1;
-    const parts = match[1].split(/[\s,/]+/).filter(Boolean);
-    if (parts.length < 4)
-      return 1;
-    const value = parts[3].endsWith("%") ? Number.parseFloat(parts[3]) / 100 : Number.parseFloat(parts[3]);
-    return Number.isFinite(value) ? value : 1;
-  }
-  function userStyleText() {
-    return Array.from(document.querySelectorAll("ldpp-user-styles style, style.stylus"), (style) => style.textContent ?? "").join(`
-`);
-  }
-
-  class Detector {
-    probe;
-    pattern;
-    userCss;
-    constructor(account, probe = realProbe) {
-      this.probe = probe;
-      this.pattern = accountPattern(account);
-      this.userCss = userStyleText();
-    }
-    covers(el, rect) {
-      const view = this.probe.viewport();
-      const width = Math.max(0, Math.min(rect.left + rect.width, view.width) - Math.max(rect.left, 0));
-      const height = Math.max(0, Math.min(rect.top + rect.height, view.height) - Math.max(rect.top, 0));
-      if (view.width * view.height > 0 && width * height / (view.width * view.height) >= 0.5)
-        return true;
-      const parent = el.parentElement;
-      if (!parent || rect.width * rect.height < 200 * 150)
-        return false;
-      const box = this.probe.rect(parent);
-      return rect.width >= box.width * 0.9 && rect.height >= box.height * 0.9;
-    }
-    mentions(...texts) {
-      return Boolean(this.pattern && texts.some((text) => text && this.pattern.test(text)));
-    }
-    ownImage(urls) {
-      return urls.some((url) => this.userCss.includes(url.slice(0, 200)));
-    }
-    check(el, pseudo = "") {
-      if (el.closest(SKIP) || EFFECTS.test(`${el.id} ${el.getAttribute("class") ?? ""}`))
-        return null;
-      const style = this.probe.style(el, pseudo);
-      if (style.display === "none" || style.visibility === "hidden")
-        return null;
-      if (pseudo && (!style.content || style.content === "none" || style.content === "normal"))
-        return null;
-      const hostRect = this.probe.rect(el);
-      const rect = pseudo ? this.pseudoRect(style, hostRect) : hostRect;
-      if (!rect)
-        return null;
-      const covers = this.covers(el, rect);
-      if (!covers && rect.width * rect.height < 300 * 150)
-        return null;
-      const urls = imageUrls(style.backgroundImage || "");
-      if (this.ownImage(urls))
-        return null;
-      const svgText = decodeSvgImages(urls);
-      const text = pseudo ? style.content.replace(/^["']|["']$/g, "") : el.childElementCount < 300 ? (el.textContent ?? "").slice(0, 4000) : "";
-      const passThrough = style.pointerEvents === "none";
-      const floating = /fixed|absolute|sticky/.test(style.position);
-      const faint = Number.parseFloat(style.opacity || "1") < 0.3 || text.trim() !== "" && alphaOf(style.color) < 0.3;
-      const blended = Boolean(style.mixBlendMode) && style.mixBlendMode !== "normal";
-      const tiled = urls.length > 0 && !/no-repeat/.test(style.backgroundRepeat || "");
-      const tile = tiled && urls.some(generated);
-      const drawn = el.tagName === "CANVAS" || el.tagName.toLowerCase() === "svg" && Boolean(el.querySelector("text, pattern"));
-      const named = this.mentions(text, svgText, pseudo ? "" : el.getAttribute("aria-label") ?? "");
-      const reasons = [];
-      if (named)
-        reasons.push("含你的用户名或 ID");
-      if (tile)
-        reasons.push(/<text[\s>]/i.test(svgText) ? "平铺的文字图片" : "平铺的生成图片");
-      if (drawn)
-        reasons.push(el.tagName === "CANVAS" ? "画布" : "SVG 图案");
-      if (faint)
-        reasons.push("近乎透明");
-      if (blended)
-        reasons.push(`混合模式 ${style.mixBlendMode}`);
-      if (passThrough)
-        reasons.push("不挡点击");
-      if (!pseudo && el.querySelector(INTERACTIVE))
-        return null;
-      const layer = covers && (named && (passThrough || faint || blended) || passThrough && floating && (tile || drawn) || passThrough && floating && (faint || blended) && (text.trim() !== "" || urls.length > 0));
-      if (layer)
-        return { el, pseudo, part: "layer", reasons: [...reasons, "铺满屏幕或容器"] };
-      if (!pseudo && tile && (named || /<text[\s>]/i.test(svgText)))
-        return { el, pseudo, part: "background", reasons: [...reasons, "画在容器背景里"] };
-      return null;
-    }
-    pseudoRect(style, host) {
-      if (!/fixed|absolute/.test(style.position))
-        return null;
-      const view = this.probe.viewport();
-      const base = style.position === "fixed" ? { left: 0, top: 0, width: view.width, height: view.height } : host;
-      const width = Number.parseFloat(style.width);
-      const height = Number.parseFloat(style.height);
-      return { left: base.left, top: base.top, width: Number.isFinite(width) ? width : base.width, height: Number.isFinite(height) ? height : base.height };
-    }
-    scan(root, out = [], host) {
-      const elements = root instanceof Element ? [root, ...root.querySelectorAll("*")] : [...root.querySelectorAll("*")];
-      for (const el of elements) {
-        const finding = this.check(el);
-        if (finding)
-          out.push(host ? { ...finding, el: host } : finding);
-        if (!finding && this.pseudoCandidate(el)) {
-          for (const pseudo of ["::before", "::after"]) {
-            const inPseudo = this.check(el, pseudo);
-            if (inPseudo)
-              out.push(host ? { ...inPseudo, el: host, pseudo: "" } : inPseudo);
-          }
-        }
-        const shadow = shadowRootOf(el);
-        if (shadow)
-          this.scan(shadow, out, host ?? el);
-      }
-      return out;
-    }
-    pseudoCandidate(el) {
-      const parent = el.parentElement;
-      if (el === document.documentElement || el === document.body || parent === document.body || parent === document.documentElement || el.id)
-        return true;
-      const rect = this.probe.rect(el);
-      const view = this.probe.viewport();
-      return rect.width >= view.width * 0.6 && rect.height >= view.height * 0.5;
-    }
-  }
-  var escapeIdent = (value) => typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(value) : value.replace(/[^\w-]/g, (char) => `\\${char}`);
-  function selectorFor(el) {
-    const parts = [];
-    for (let node = el;node && node !== document.documentElement; node = node.parentElement) {
-      if (node === document.body) {
-        parts.unshift("body");
-        continue;
-      }
-      if (node.id && document.querySelectorAll(`#${escapeIdent(node.id)}`).length === 1) {
-        parts.unshift(`#${escapeIdent(node.id)}`);
-        return parts.join(" > ");
-      }
-      const parent = node.parentElement;
-      const index = parent ? Array.prototype.indexOf.call(parent.children, node) + 1 : 1;
-      const classes = Array.from(node.classList).filter((name) => !/^ember\d/.test(name)).slice(0, 2).map((name) => `.${escapeIdent(name)}`).join("");
-      parts.unshift(`${node.tagName.toLowerCase()}${classes}:nth-child(${index})`);
-    }
-    parts.unshift("html");
-    return parts.join(" > ");
-  }
-  function hidingCss(findings) {
-    const scope = "html:not(#ldpp-no-watermark)";
-    return findings.map((finding) => {
-      const selector = selectorFor(finding.el);
-      const target = selector.startsWith("html") ? selector.replace(/^html/, scope) : `${scope} ${selector}`;
-      if (finding.pseudo)
-        return `${target}${finding.pseudo} { content: none !important; background: none !important; }`;
-      if (finding.part === "background")
-        return `${target} { background-image: none !important; }`;
-      return `${target} { filter: opacity(0) !important; clip-path: inset(50%) !important; }`;
-    }).join(`
-`);
-  }
-  function describe(el) {
-    const classes = Array.from(el.classList).slice(0, 2).map((name) => `.${name}`).join("");
-    return `<${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}${classes}>`;
-  }
-
   // src/plugins/noWatermark/index.ts
   var STYLE3 = "no-watermark";
   var FULL_SCAN_DELAY_MS = 400;
@@ -17225,13 +17846,13 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   var lastScan = null;
   var revealing = false;
   var notified = false;
-  var observer5 = null;
+  var observer6 = null;
   var fullTimer = null;
   var safetyTimer = null;
-  var frame3 = 0;
+  var frame4 = 0;
   var pending3 = new Set;
   var refreshView = null;
-  var settings18 = definePluginSettings({
+  var settings19 = definePluginSettings({
     notify: {
       type: 2 /* BOOLEAN */,
       description: "发现并隐藏水印时提示一次",
@@ -17254,7 +17875,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   function report2(fresh) {
     for (const finding of fresh)
       logger14.info(`已隐藏 ${describe(finding.el)}${finding.pseudo}：${finding.reasons.join("、")}`);
-    if (!fresh.length || notified || !settings18.store.notify)
+    if (!fresh.length || notified || !settings19.store.notify)
       return;
     notified = true;
     showToast(`已隐藏 ${findings.length} 处疑似水印，截图里不会出现（LD++ 设置 → 去除隐藏水印 → 本页检测）`, "info", { key: "no-watermark" });
@@ -17302,7 +17923,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     }, delay);
   }
   function flushPending() {
-    frame3 = 0;
+    frame4 = 0;
     if (!pending3.size)
       return;
     const detector = new Detector(currentAccount());
@@ -17328,17 +17949,17 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   function queue(node) {
     const el = outerHost(node);
     pending3.add(el);
-    if (frame3)
+    if (frame4)
       return;
-    frame3 = typeof requestAnimationFrame === "function" && document.visibilityState !== "hidden" ? requestAnimationFrame(flushPending) : setTimeout(flushPending, 16);
+    frame4 = typeof requestAnimationFrame === "function" && document.visibilityState !== "hidden" ? requestAnimationFrame(flushPending) : setTimeout(flushPending, 16);
   }
   var isStyleSheet = (node) => node instanceof Element && node.matches("style, link[rel~='stylesheet']");
   var OBSERVE = { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"] };
   function watchRoot(root) {
-    observer5?.observe(root, OBSERVE);
+    observer6?.observe(root, OBSERVE);
     queue(root.host);
   }
-  function onMutations(records) {
+  function onMutations2(records) {
     let treeChanged = false;
     for (const record of records) {
       const target = record.target;
@@ -17394,10 +18015,10 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     icon: EraserIcon,
     enabledByDefault: true,
     startAt: "Init" /* Init */,
-    settings: settings18,
+    settings: settings19,
     start() {
-      observer5 = new MutationObserver(onMutations);
-      observer5.observe(document.documentElement, OBSERVE);
+      observer6 = new MutationObserver(onMutations2);
+      observer6.observe(document.documentElement, OBSERVE);
       hookShadowRoots(watchRoot);
       scheduleFull(0);
       safetyTimer = setInterval(() => {
@@ -17407,8 +18028,8 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       }, SAFETY_SCAN_MS);
     },
     stop() {
-      observer5?.disconnect();
-      observer5 = null;
+      observer6?.disconnect();
+      observer6 = null;
       unhookShadowRoots();
       if (fullTimer)
         clearTimeout(fullTimer);
@@ -17772,7 +18393,7 @@ ${posts}
   var logger15 = new Logger("TopicExport", "#f9e2af");
   var BUTTON = "ldpp-export-button";
   var FOOTER = "#topic-footer-buttons .topic-footer-main-buttons, #topic-footer-buttons .topic-footer-main-buttons__actions";
-  var settings19 = definePluginSettings({
+  var settings20 = definePluginSettings({
     includeSummary: {
       type: 2 /* BOOLEAN */,
       description: "导出时在开头附上该话题最新一次 AI 总结（如果有）。",
@@ -17790,7 +18411,7 @@ ${posts}
         onRetry: (info) => toast.update(`linux.do 限流，${info.delaySeconds} 秒后重试（${info.attempt}/${info.total}）…`, "loading")
       });
       rememberTopicTitle(topicId, title);
-      const summary = settings19.store.includeSummary ? Summaries.get(topicId)?.[0]?.summary : undefined;
+      const summary = settings20.store.includeSummary ? Summaries.get(topicId)?.[0]?.summary : undefined;
       const topic = { topicId, title, url: `${location.origin}/t/topic/${topicId}`, posts, summary, exportedAt: new Date };
       const spec = FORMATS.find((item) => item.id === format) ?? FORMATS[0];
       downloadText(renderExport(topic, spec.id), exportFileName(topic, spec.id), spec.mime);
@@ -17851,7 +18472,7 @@ ${posts}
     }, DownloadIcon(14), h("span", { class: "d-button-label" }, "导出")), "export-button");
     footer.append(button);
   }
-  var observer6 = null;
+  var observer7 = null;
   var timer2;
   var topicExport_default = definePlugin({
     name: "TopicExport",
@@ -17860,20 +18481,20 @@ ${posts}
     tags: ["reading"],
     icon: DownloadIcon,
     enabledByDefault: true,
-    settings: settings19,
+    settings: settings20,
     start() {
-      observer6 = new MutationObserver(() => {
+      observer7 = new MutationObserver(() => {
         timer2 ??= setTimeout(() => {
           timer2 = undefined;
           ensureButton();
         }, 150);
       });
-      observer6.observe(document.documentElement, { childList: true, subtree: true });
+      observer7.observe(document.documentElement, { childList: true, subtree: true });
       ensureButton();
     },
     stop() {
-      observer6?.disconnect();
-      observer6 = null;
+      observer7?.disconnect();
+      observer7 = null;
       clearTimeout(timer2);
       timer2 = undefined;
       closeMenu();
@@ -17896,7 +18517,7 @@ ${posts}
     "The best way to predict the future is to create it."
   ].join(`
 `);
-  var settings20 = definePluginSettings({
+  var settings21 = definePluginSettings({
     mode: {
       type: 3 /* SELECT */,
       description: "切换时机",
@@ -17964,44 +18585,44 @@ ${TITLE} {
     user-select: none !important;
 }` : ""}`;
   }
-  var mode = () => ["interval", "manual"].includes(String(settings20.store.mode)) ? settings20.store.mode : "refresh";
-  var greetings = () => parseGreetings(settings20.store.phrases);
+  var mode = () => ["interval", "manual"].includes(String(settings21.store.mode)) ? settings21.store.mode : "refresh";
+  var greetings = () => parseGreetings(settings21.store.phrases);
   var isHome = () => HOME_PATHS.has(location.pathname.replace(/\/+$/, "") || "/");
   function pickNextIndex(length, advance, random = Math.random) {
     if (length <= 0)
       return 0;
-    const current = Number(settings20.store.greetIndex ?? -1);
+    const current = Number(settings21.store.greetIndex ?? -1);
     if (length === 1) {
-      settings20.store.greetIndex = 0;
+      settings21.store.greetIndex = 0;
       return 0;
     }
     if (!advance) {
       if (current >= 0 && current < length)
         return current;
-      settings20.store.greetIndex = 0;
+      settings21.store.greetIndex = 0;
       return 0;
     }
-    if (settings20.store.order === "random") {
-      const previous = current >= 0 && current < length ? current : Number(settings20.store.lastRandom ?? -1);
+    if (settings21.store.order === "random") {
+      const previous = current >= 0 && current < length ? current : Number(settings21.store.lastRandom ?? -1);
       let next = Math.floor(random() * length);
       for (let guard = 0;next === previous && guard < 10; guard++)
         next = Math.floor(random() * length);
-      settings20.store.greetIndex = next;
-      settings20.store.lastRandom = next;
+      settings21.store.greetIndex = next;
+      settings21.store.lastRandom = next;
       return next;
     }
     const next = ((current >= -1 && current < length ? current : -1) + 1) % length;
-    settings20.store.greetIndex = next;
+    settings21.store.greetIndex = next;
     return next;
   }
-  var active6 = false;
+  var active7 = false;
   var wasHome = false;
   var timer3;
   var listeners7 = null;
   var warnedLegacy3 = false;
   function paint(advance) {
     const list = greetings();
-    if (!active6 || !list.length) {
+    if (!active7 || !list.length) {
       unregisterStyle(STYLE4);
       return;
     }
@@ -18015,9 +18636,9 @@ ${TITLE} {
   }
   function startTimerIfNeeded() {
     stopTimer();
-    if (!active6 || !isHome() || mode() !== "interval" || greetings().length <= 1)
+    if (!active7 || !isHome() || mode() !== "interval" || greetings().length <= 1)
       return;
-    const seconds = Math.min(3600, Math.max(1, Number(settings20.store.intervalSec) || 10));
+    const seconds = Math.min(3600, Math.max(1, Number(settings21.store.intervalSec) || 10));
     timer3 = setInterval(() => paint(true), seconds * 1000);
   }
   function warnLegacy() {
@@ -18068,9 +18689,9 @@ ${TITLE} {
     tags: ["reading"],
     icon: MessageCircleIcon,
     enabledByDefault: true,
-    settings: settings20,
+    settings: settings21,
     start() {
-      active6 = true;
+      active7 = true;
       wasHome = false;
       listeners7 = new AbortController;
       document.addEventListener("click", onClick, { signal: listeners7.signal });
@@ -18080,7 +18701,7 @@ ${TITLE} {
         paint(false);
     },
     stop() {
-      active6 = false;
+      active7 = false;
       wasHome = false;
       listeners7?.abort();
       listeners7 = null;
@@ -19205,7 +19826,7 @@ ${TITLE} {
     }, h("span", { class: "d-button-label" }, "混排优化")), "pangu-button");
     create.after(button);
   }
-  var observer7 = null;
+  var observer8 = null;
   var flushTimer2;
   var pending4 = new Set;
   function addRoot(el) {
@@ -19233,7 +19854,7 @@ ${TITLE} {
     pending4.clear();
     ensureButton2();
   }
-  function onMutations2(mutations) {
+  function onMutations3(mutations) {
     for (const mutation of mutations) {
       if (mutation.type === "characterData")
         collect(mutation.target);
@@ -19251,14 +19872,14 @@ ${TITLE} {
     icon: LanguagesIcon,
     enabledByDefault: true,
     start() {
-      observer7 = new MutationObserver(onMutations2);
-      observer7.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+      observer8 = new MutationObserver(onMutations3);
+      observer8.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
       collect(document.documentElement);
       flush();
     },
     stop() {
-      observer7?.disconnect();
-      observer7 = null;
+      observer8?.disconnect();
+      observer8 = null;
       clearTimeout(flushTimer2);
       flushTimer2 = undefined;
       pending4.clear();
@@ -19310,7 +19931,7 @@ div#reply-control .reply-area {
 .d-header .d-header-icons .icon img.avatar {
     height: 2em !important;
 }`;
-  var settings21 = definePluginSettings({
+  var settings22 = definePluginSettings({
     wide: {
       type: 2 /* BOOLEAN */,
       description: "超宽显示：页面内容铺满整个窗口宽度",
@@ -19322,12 +19943,12 @@ div#reply-control .reply-area {
       default: true
     }
   });
-  function apply2() {
-    if (settings21.store.wide !== false)
+  function apply3() {
+    if (settings22.store.wide !== false)
       registerStyle(WIDE_STYLE, WIDE_CSS);
     else
       unregisterStyle(WIDE_STYLE);
-    if (settings21.store.thinHeader !== false)
+    if (settings22.store.thinHeader !== false)
       registerStyle(THIN_STYLE, THIN_HEADER_CSS);
     else
       unregisterStyle(THIN_STYLE);
@@ -19340,13 +19961,13 @@ div#reply-control .reply-area {
     icon: WideIcon,
     enabledByDefault: true,
     startAt: "Init" /* Init */,
-    settings: settings21,
-    start: apply2,
+    settings: settings22,
+    start: apply3,
     stop() {
       unregisterStyle(WIDE_STYLE);
       unregisterStyle(THIN_STYLE);
     },
-    onSettingsChange: apply2
+    onSettingsChange: apply3
   });
 
   // ldpp-css:src/plugins/driveSync/styles.css
@@ -19770,7 +20391,7 @@ div#reply-control .reply-area {
   var logger16 = new Logger("DriveSync", "#89b4fa");
   var DEFAULT_FOLDER = "[LINUX DO] \uD83C\uDF1F 话题 & 回复 总结";
   var AUTO_DELAY_MS = 3000;
-  var settings22 = definePluginSettings({
+  var settings23 = definePluginSettings({
     clientId: {
       type: 0 /* STRING */,
       description: "OAuth Client ID",
@@ -19815,14 +20436,14 @@ div#reply-control .reply-area {
   var statusListeners = new Set;
   var unsubs3 = [];
   function client() {
-    const { clientId, clientSecret, refreshToken } = settings22.store;
+    const { clientId, clientSecret, refreshToken } = settings23.store;
     const key = `${clientId}\x00${clientSecret}\x00${refreshToken}`;
     if (cached?.key !== key)
       cached = { key, client: new DriveClient({ clientId, clientSecret, refreshToken }) };
     return cached.client;
   }
   function engine() {
-    return new DriveSync(client(), settings22.store.folderName.trim() || DEFAULT_FOLDER);
+    return new DriveSync(client(), settings23.store.folderName.trim() || DEFAULT_FOLDER);
   }
   function setStatus(text) {
     status = text;
@@ -19882,7 +20503,7 @@ div#reply-control .reply-area {
     return running3;
   }
   function scheduleSync() {
-    if (!settings22.store.autoSync || !client().configured || !dirty.size && !dearrowDirty)
+    if (!settings23.store.autoSync || !client().configured || !dirty.size && !dearrowDirty)
       return;
     if (timer4)
       clearTimeout(timer4);
@@ -19929,7 +20550,7 @@ div#reply-control .reply-area {
     description: "把总结、问答与 DeArrow 状态同步到你自己的 Google Drive，多设备共享；本地缺失时自动从云端拉取。",
     tags: ["sync"],
     icon: CloudIcon,
-    settings: settings22,
+    settings: settings23,
     start() {
       dirty = loadDirty();
       dearrowDirty = loadDeArrowDirty();
@@ -19979,6 +20600,7 @@ div#reply-control .reply-area {
   disableAutoplay_default.updatedAt = 1792361044000;
   privacyBlur_default.updatedAt = 1792792379000;
   listSummary_default.updatedAt = 1792789819000;
+  customIdentity_default.updatedAt = 0;
   sidebarWidth_default.updatedAt = 1792361044000;
   recentTopics_default.updatedAt = 1792792379000;
   createdTime_default.updatedAt = 1792361044000;
@@ -19995,12 +20617,12 @@ div#reply-control .reply-area {
   wideLayout_default.updatedAt = 1792361044000;
   driveSync_default.updatedAt = 1792705837000;
   keywordSearch_default.updatedAt = 1792361044000;
-  var __plugins_default = { [ai_default.name]: ai_default, [notifications_default.name]: notifications_default, [settings_default.name]: settings_default, [userStyles_default.name]: userStyles_default, [postTimestamps_default.name]: postTimestamps_default, [topicSummary_default.name]: topicSummary_default, [disableAutoplay_default.name]: disableAutoplay_default, [privacyBlur_default.name]: privacyBlur_default, [listSummary_default.name]: listSummary_default, [sidebarWidth_default.name]: sidebarWidth_default, [recentTopics_default.name]: recentTopics_default, [createdTime_default.name]: createdTime_default, [completionAlert_default.name]: completionAlert_default, [topicBlocker_default.name]: topicBlocker_default, [deArrow_default.name]: deArrow_default, [posterAvatars_default.name]: posterAvatars_default, [noWatermark_default.name]: noWatermark_default, [topicExport_default.name]: topicExport_default, [customGreeting_default.name]: customGreeting_default, [searchFilter_default.name]: searchFilter_default, [panguSpacing_default.name]: panguSpacing_default, [topicQA_default.name]: topicQA_default, [wideLayout_default.name]: wideLayout_default, [driveSync_default.name]: driveSync_default, [keywordSearch_default.name]: keywordSearch_default };
+  var __plugins_default = { [ai_default.name]: ai_default, [notifications_default.name]: notifications_default, [settings_default.name]: settings_default, [userStyles_default.name]: userStyles_default, [postTimestamps_default.name]: postTimestamps_default, [topicSummary_default.name]: topicSummary_default, [disableAutoplay_default.name]: disableAutoplay_default, [privacyBlur_default.name]: privacyBlur_default, [listSummary_default.name]: listSummary_default, [customIdentity_default.name]: customIdentity_default, [sidebarWidth_default.name]: sidebarWidth_default, [recentTopics_default.name]: recentTopics_default, [createdTime_default.name]: createdTime_default, [completionAlert_default.name]: completionAlert_default, [topicBlocker_default.name]: topicBlocker_default, [deArrow_default.name]: deArrow_default, [posterAvatars_default.name]: posterAvatars_default, [noWatermark_default.name]: noWatermark_default, [topicExport_default.name]: topicExport_default, [customGreeting_default.name]: customGreeting_default, [searchFilter_default.name]: searchFilter_default, [panguSpacing_default.name]: panguSpacing_default, [topicQA_default.name]: topicQA_default, [wideLayout_default.name]: wideLayout_default, [driveSync_default.name]: driveSync_default, [keywordSearch_default.name]: keywordSearch_default };
 
   // src/LDPP.ts
   var logger17 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261023.11] v1.0.0";
+  var version = "[20261024.1] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -20014,7 +20636,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger17.info(`LD++ ${"[20261023.11] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger17.info(`LD++ ${"[20261024.1] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 

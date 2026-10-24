@@ -95,6 +95,8 @@ export const PanelLeftIcon = stroke(["rect", { x: "3", y: "3", width: "18", heig
 export const MessageCircleIcon = stroke(path("M7.9 20A9 9 0 1 0 4 16.1L2 22Z"));
 /** Lucide "circle-user" — 发布者头像调整. */
 export const UserCircleIcon = stroke(circle(12, 12, 10), circle(12, 10, 3), path("M7 20.66V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.66"));
+/** Lucide "user-round-pen" — 自定义头像与名字. */
+export const UserRoundPenIcon = stroke(path("M2 21a8 8 0 0 1 10.821-7.487"), path("M21.378 16.626a1 1 0 0 0-3.004-3.004l-4.01 4.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"), circle(10, 8, 5));
 /** Lucide "move-horizontal" — 超宽显示与窄顶栏. */
 export const WideIcon = stroke(path("m18 8 4 4-4 4"), path("M2 12h20"), path("m6 8-4 4 4 4"));
 /** Lucide "clock" — 话题创建时间. */
