@@ -52,6 +52,16 @@ export const settings = definePluginSettings({
         max: 60,
         default: 0,
     },
+    summaryPreview: {
+        type: OptionType.BOOLEAN,
+        description: "总结完成的通知里显示总结开头几句（对照 Void++ CompleteToast）。",
+        default: true,
+    },
+    keepSummaryToast: {
+        type: OptionType.BOOLEAN,
+        description: "总结完成的通知一直留着，直到点 × 关闭或点击它跳到话题。",
+        default: false,
+    },
     clickJump: {
         type: OptionType.SELECT,
         description: "点击话题通知后的跳转效果",
@@ -98,6 +108,8 @@ export default definePlugin({
                 error: settings.store.errorSeconds,
             },
             style: settings.store.style === "classic" ? "classic" : "ldpp",
+            summaryPreview: settings.store.summaryPreview,
+            keepSummary: settings.store.keepSummaryToast,
         }));
         configureTopicFocus(() => ({
             jump: settings.store.clickJump === "classic" ? "classic" : "ldpp",

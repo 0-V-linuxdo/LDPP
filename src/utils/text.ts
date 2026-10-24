@@ -78,3 +78,19 @@ export function formatTime(iso: string): string {
     const time = Date.parse(iso);
     return Number.isFinite(time) ? new Date(time).toLocaleString() : "未知时间";
 }
+
+/** A summary as one line of plain text (recent-topic cards, the summary toast): Markdown and HTML marks dropped, cut to `max` characters. */
+export function summaryExcerpt(summary: string, max = 90): string {
+    const text = summary
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&(lt|gt|quot|#39|amp);/g, (_, name: string) => ({ lt: "<", gt: ">", quot: '"', "#39": "'", amp: "&" })[name] ?? "")
+        .replace(/```[\s\S]*?```/g, " ")
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+        .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+        .replace(/^#{1,6}\s+/gm, "")
+        .replace(/[*_`>~|-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    return text.length > max ? `${text.slice(0, max)}…` : text;
+}

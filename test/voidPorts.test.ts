@@ -223,3 +223,10 @@ describe("custom identity", () => {
         expect(mine.hasAttribute("data-ldpp-identity")).toBe(false);
     });
 });
+
+describe("summary excerpt", () => {
+    test("HTML summaries lose their tags and entities", () => {
+        expect(summaryExcerpt("<h3>结论</h3><p>A&nbsp;&amp;&nbsp;B</p>")).toBe("结论 A & B");
+        expect(summaryExcerpt("一二三四五", 3)).toBe("一二三…");
+    });
+});

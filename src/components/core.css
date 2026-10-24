@@ -1107,6 +1107,20 @@ tr.topic-list-item.ldpp-flash > td {
     overflow-wrap: anywhere;
 }
 
+.ldpp-toast-detail {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--ldpp-flat-text);
+    font-size: var(--ldpp-font-sm);
+    line-height: 1.45;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+.ldpp-toast-detail[hidden] {
+    display: none;
+}
+
 .ldpp-toast-topic {
     overflow: hidden;
     color: var(--ldpp-muted);
@@ -1190,6 +1204,12 @@ tr.topic-list-item.ldpp-flash > td {
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+}
+
+.ldpp-toasts-classic .ldpp-toast-detail {
+    color: inherit;
+    font-size: 12px;
+    opacity: 0.9;
 }
 
 .ldpp-toasts-classic .ldpp-toast-topic {

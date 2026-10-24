@@ -21,6 +21,10 @@ export interface ToastConfig {
     enabled: boolean;
     durations: Record<TimedType, number>;
     style: ToastStyle;
+    /** Show the start of a finished summary in its toast. */
+    summaryPreview: boolean;
+    /** Keep a finished summary's toast until it is closed or clicked. */
+    keepSummary: boolean;
 }
 
 export interface ToastOptions {
@@ -35,10 +39,12 @@ export interface ToastOptions {
 export interface ToastHandle {
     readonly closed: boolean;
     update(message: string, type?: ToastType, duration?: number): void;
+    /** A smaller line under the message (a preview), or none. */
+    setDetail(text: string | null): void;
     close(): void;
 }
 
-const DEFAULT_CONFIG: ToastConfig = { enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 }, style: "ldpp" };
+const DEFAULT_CONFIG: ToastConfig = { enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 }, style: "ldpp", summaryPreview: true, keepSummary: false };
 const TITLE_WIDTH = 34;
 // The original script cut topic titles to 28 columns and wrote the fallback without a space.
 const CLASSIC_TITLE_WIDTH = 28;
@@ -48,6 +54,10 @@ const byKey = new Map<string, ToastHandle>();
 
 export function configureToasts(getter: () => ToastConfig) {
     readConfig = getter;
+}
+
+export function toastConfig(): ToastConfig {
+    return readConfig();
 }
 
 function container(): HTMLElement {
@@ -70,7 +80,7 @@ function durationFor(type: ToastType, explicit?: number): number {
     return Math.max(0, readConfig().durations[type] ?? 0) * 1000;
 }
 
-const NOOP: ToastHandle = { closed: true, update() {}, close() {} };
+const NOOP: ToastHandle = { closed: true, update() {}, setDetail() {}, close() {} };
 
 export function closeToast(key: string) {
     byKey.get(key)?.close();
@@ -84,11 +94,12 @@ export function showToast(message: string, type: ToastType = "info", options: To
         return existing;
     }
     const text = h("span", { class: "ldpp-toast-text" }, message);
+    const detail = h("div", { class: "ldpp-toast-detail", hidden: true });
     const classic = readConfig().style === "classic";
     const topicLine = options.topicId ? h("div", { class: "ldpp-toast-topic" }, classic ? `📌 话题#${options.topicId}` : `📌 话题 #${options.topicId}`) : null;
     const el = h("div", { class: `ldpp-toast ldpp-toast-${type}`, attrs: { role: type === "error" ? "alert" : "status" } },
         h("span", { class: "ldpp-toast-dot" }),
-        h("div", { class: "ldpp-toast-main" }, text, topicLine),
+        h("div", { class: "ldpp-toast-main" }, text, detail, topicLine),
     );
     let timer: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
@@ -106,6 +117,12 @@ export function showToast(message: string, type: ToastType = "info", options: To
             el.className = `ldpp-toast ldpp-toast-${nextType} is-shown`;
             if (options.onClick) el.classList.add("is-clickable");
             arm(durationFor(nextType, duration));
+        },
+        setDetail(next) {
+            if (closed) return;
+            detail.textContent = next ?? "";
+            detail.title = next ?? "";
+            detail.hidden = !next;
         },
         close() {
             if (closed) return;

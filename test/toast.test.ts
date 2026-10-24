@@ -44,9 +44,21 @@ describe("showToast", () => {
     });
 
     test("the original script's look is a class on the container", () => {
-        configureToasts(() => ({ enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 }, style: "classic" }));
+        configureToasts(() => ({ enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 }, style: "classic", summaryPreview: true, keepSummary: false }));
         showToast("x", "info");
         expect(document.querySelector(".ldpp-toasts")?.classList.contains("ldpp-toasts-classic")).toBe(true);
-        configureToasts(() => ({ enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 }, style: "ldpp" }));
+        configureToasts(() => ({ enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 }, style: "ldpp", summaryPreview: true, keepSummary: false }));
+    });
+
+    test("a detail line shows under the message, and goes away when cleared", () => {
+        const handle = showToast("总结完成", "success");
+        const detail = () => document.querySelectorAll<HTMLElement>(".ldpp-toast-detail");
+        const last = () => detail()[detail().length - 1];
+        expect(last().hidden).toBe(true);
+        handle.setDetail("要点一 要点二");
+        expect(last().hidden).toBe(false);
+        expect(last().textContent).toBe("要点一 要点二");
+        handle.setDetail(null);
+        expect(last().hidden).toBe(true);
     });
 });

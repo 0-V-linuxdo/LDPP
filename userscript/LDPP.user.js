@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261024.1
+// @version      20261024.2
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261024.1] v1.0.0 — a modification for linux.do
+ * LD++ [20261024.2] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -2410,6 +2410,20 @@ tr.topic-list-item.ldpp-flash > td {
     overflow-wrap: anywhere;
 }
 
+.ldpp-toast-detail {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--ldpp-flat-text);
+    font-size: var(--ldpp-font-sm);
+    line-height: 1.45;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+.ldpp-toast-detail[hidden] {
+    display: none;
+}
+
 .ldpp-toast-topic {
     overflow: hidden;
     color: var(--ldpp-muted);
@@ -2493,6 +2507,12 @@ tr.topic-list-item.ldpp-flash > td {
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+}
+
+.ldpp-toasts-classic .ldpp-toast-detail {
+    color: inherit;
+    font-size: 12px;
+    opacity: 0.9;
 }
 
 .ldpp-toasts-classic .ldpp-toast-topic {
@@ -5841,6 +5861,10 @@ Please report this to https://github.com/markedjs/marked.`;
     const time = Date.parse(iso);
     return Number.isFinite(time) ? new Date(time).toLocaleString() : "未知时间";
   }
+  function summaryExcerpt(summary, max = 90) {
+    const text = summary.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&(lt|gt|quot|#39|amp);/g, (_, name) => ({ lt: "<", gt: ">", quot: '"', "#39": "'", amp: "&" })[name] ?? "").replace(/```[\s\S]*?```/g, " ").replace(/!\[[^\]]*\]\([^)]*\)/g, " ").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/^#{1,6}\s+/gm, "").replace(/[*_`>~|-]+/g, " ").replace(/\s+/g, " ").trim();
+    return text.length > max ? `${text.slice(0, max)}…` : text;
+  }
 
   // src/api/Discourse.ts
   class DiscourseError extends Error {
@@ -7297,13 +7321,16 @@ Please report this to https://github.com/markedjs/marked.`;
   });
 
   // src/api/Notifications.ts
-  var DEFAULT_CONFIG = { enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 }, style: "ldpp" };
+  var DEFAULT_CONFIG = { enabled: true, durations: { info: 3, success: 4, warning: 6, error: 0 }, style: "ldpp", summaryPreview: true, keepSummary: false };
   var TITLE_WIDTH = 34;
   var CLASSIC_TITLE_WIDTH = 28;
   var readConfig = () => DEFAULT_CONFIG;
   var byKey = new Map;
   function configureToasts(getter) {
     readConfig = getter;
+  }
+  function toastConfig() {
+    return readConfig();
   }
   function container2() {
     const found = document.querySelector(".ldpp-toasts");
@@ -7324,7 +7351,7 @@ Please report this to https://github.com/markedjs/marked.`;
       return 0;
     return Math.max(0, readConfig().durations[type] ?? 0) * 1000;
   }
-  var NOOP = { closed: true, update() {}, close() {} };
+  var NOOP = { closed: true, update() {}, setDetail() {}, close() {} };
   function closeToast(key) {
     byKey.get(key)?.close();
   }
@@ -7337,9 +7364,10 @@ Please report this to https://github.com/markedjs/marked.`;
       return existing;
     }
     const text = h("span", { class: "ldpp-toast-text" }, message);
+    const detail = h("div", { class: "ldpp-toast-detail", hidden: true });
     const classic = readConfig().style === "classic";
     const topicLine = options.topicId ? h("div", { class: "ldpp-toast-topic" }, classic ? `\uD83D\uDCCC 话题#${options.topicId}` : `\uD83D\uDCCC 话题 #${options.topicId}`) : null;
-    const el = h("div", { class: `ldpp-toast ldpp-toast-${type}`, attrs: { role: type === "error" ? "alert" : "status" } }, h("span", { class: "ldpp-toast-dot" }), h("div", { class: "ldpp-toast-main" }, text, topicLine));
+    const el = h("div", { class: `ldpp-toast ldpp-toast-${type}`, attrs: { role: type === "error" ? "alert" : "status" } }, h("span", { class: "ldpp-toast-dot" }), h("div", { class: "ldpp-toast-main" }, text, detail, topicLine));
     let timer = null;
     let closed = false;
     let currentType = type;
@@ -7361,6 +7389,13 @@ Please report this to https://github.com/markedjs/marked.`;
         if (options.onClick)
           el.classList.add("is-clickable");
         arm(durationFor(nextType, duration));
+      },
+      setDetail(next) {
+        if (closed)
+          return;
+        detail.textContent = next ?? "";
+        detail.title = next ?? "";
+        detail.hidden = !next;
       },
       close() {
         if (closed)
@@ -7454,6 +7489,16 @@ Please report this to https://github.com/markedjs/marked.`;
       max: 60,
       default: 0
     },
+    summaryPreview: {
+      type: 2 /* BOOLEAN */,
+      description: "总结完成的通知里显示总结开头几句（对照 Void++ CompleteToast）。",
+      default: true
+    },
+    keepSummaryToast: {
+      type: 2 /* BOOLEAN */,
+      description: "总结完成的通知一直留着，直到点 × 关闭或点击它跳到话题。",
+      default: false
+    },
     clickJump: {
       type: 3 /* SELECT */,
       description: "点击话题通知后的跳转效果",
@@ -7497,7 +7542,9 @@ Please report this to https://github.com/markedjs/marked.`;
           warning: settings2.store.warningSeconds,
           error: settings2.store.errorSeconds
         },
-        style: settings2.store.style === "classic" ? "classic" : "ldpp"
+        style: settings2.store.style === "classic" ? "classic" : "ldpp",
+        summaryPreview: settings2.store.summaryPreview,
+        keepSummary: settings2.store.keepSummaryToast
       }));
       configureTopicFocus(() => ({
         jump: settings2.store.clickJump === "classic" ? "classic" : "ldpp",
@@ -12396,7 +12443,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261024.1] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"4ec7053"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261024.2] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"dfc608c"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -13298,6 +13345,13 @@ ${body}`;
       }
     }
   }
+  var PREVIEW_LENGTH = 120;
+  function finishToast(toast, message, summary) {
+    const { keepSummary, summaryPreview } = toastConfig();
+    toast.update(message, "success", keepSummary ? 0 : undefined);
+    const preview = summaryPreview && summary ? summaryExcerpt(summary, PREVIEW_LENGTH) : "";
+    toast.setDetail(preview || null);
+  }
   function operationStatus(topicId) {
     return operations.get(topicId)?.status ?? null;
   }
@@ -13390,7 +13444,7 @@ ${content.text}`, images) }
       if (!hasSummary(topicId) && Summarized.has(topicId) && hasRemoteSource()) {
         setStatus("正在从云端拉取已有总结…");
         if (await pullRemote(topicId, signal)) {
-          op.toast.update("已从云端拉取总结", "success");
+          finishToast(op.toast, "已从云端拉取总结", Summaries.get(topicId)?.[0]?.summary);
           outcome = "done";
           return true;
         }
@@ -13432,7 +13486,7 @@ ${content.text}`, images) }
       const filter = config.filter();
       const summary = filter.enabled ? stripFences(raw, filter.prefixes, filter.suffixes) : raw.trim();
       addSummary(topicId, { summary, timestamp: new Date().toISOString(), model: profile.model || "未知模型", renderMode: renderModeOf(prompt, summary) });
-      op.toast.update(mode === "auto" ? "自动总结完成" : "总结完成", "success");
+      finishToast(op.toast, mode === "auto" ? "自动总结完成" : "总结完成", summary);
       outcome = "done";
       return true;
     } catch (error) {
@@ -16340,10 +16394,6 @@ ${hovered} {
     if (days < 30)
       return `${days} 天前`;
     return new Date(time).toLocaleDateString();
-  }
-  function summaryExcerpt(summary, max = 90) {
-    const text = summary.replace(/<[^>]+>/g, " ").replace(/```[\s\S]*?```/g, " ").replace(/!\[[^\]]*\]\([^)]*\)/g, " ").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/^#{1,6}\s+/gm, "").replace(/[*_`>~|-]+/g, " ").replace(/\s+/g, " ").trim();
-    return text.length > max ? `${text.slice(0, max)}…` : text;
   }
 
   // src/plugins/recentTopics/index.ts
@@ -20592,17 +20642,17 @@ div#reply-control .reply-area {
 
   // ldpp-virtual:~plugins
   ai_default.updatedAt = 1792361044000;
-  notifications_default.updatedAt = 1792792962000;
+  notifications_default.updatedAt = 1792885926000;
   settings_default.updatedAt = 1792792379000;
   userStyles_default.updatedAt = 1792361044000;
   postTimestamps_default.updatedAt = 1792792379000;
-  topicSummary_default.updatedAt = 1792792379000;
+  topicSummary_default.updatedAt = 1792885926000;
   disableAutoplay_default.updatedAt = 1792361044000;
   privacyBlur_default.updatedAt = 1792792379000;
   listSummary_default.updatedAt = 1792789819000;
-  customIdentity_default.updatedAt = 0;
+  customIdentity_default.updatedAt = 1792843761000;
   sidebarWidth_default.updatedAt = 1792361044000;
-  recentTopics_default.updatedAt = 1792792379000;
+  recentTopics_default.updatedAt = 1792885926000;
   createdTime_default.updatedAt = 1792361044000;
   completionAlert_default.updatedAt = 1792792379000;
   topicBlocker_default.updatedAt = 1792361044000;
@@ -20622,7 +20672,7 @@ div#reply-control .reply-area {
   // src/LDPP.ts
   var logger17 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261024.1] v1.0.0";
+  var version = "[20261024.2] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -20636,7 +20686,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger17.info(`LD++ ${"[20261024.1] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger17.info(`LD++ ${"[20261024.2] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 

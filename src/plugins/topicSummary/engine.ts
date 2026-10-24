@@ -7,14 +7,15 @@
 import { AIError, type AIProfile, type ChatMessage, chatWithRetry, getProfile, requireProfile, userContent } from "@api/AI";
 import { rememberTopicTitle } from "@api/Discourse";
 import { dispatch } from "@api/Events";
-import { addSummary, hasSummary, Summarized } from "@api/DataStore";
+import { addSummary, hasSummary, Summaries, Summarized } from "@api/DataStore";
 import { prepareImages } from "@api/Images";
 import { currentRoute } from "@api/Navigation";
-import { showToast, type ToastHandle } from "@api/Notifications";
+import { showToast, type ToastHandle, toastConfig } from "@api/Notifications";
 import { buildTopicContent, type TopicContent } from "@api/TopicContent";
 import { focusTopic } from "@api/TopicList";
 import { Logger } from "@utils/Logger";
 import { abortError, errorMessage, isAbortError, randomId } from "@utils/misc";
+import { summaryExcerpt } from "@utils/text";
 
 import { type PromptConfig, renderModeOf, stripFences } from "./prompts";
 
@@ -67,6 +68,16 @@ function notify(topicId: string) {
     for (const listener of Array.from(listeners)) {
         try { listener(topicId); } catch (error) { logger.error("状态监听出错", error); }
     }
+}
+
+const PREVIEW_LENGTH = 120;
+
+/** The finished toast: the start of the summary under the message, and kept open when so configured. */
+function finishToast(toast: ToastHandle, message: string, summary: string | undefined) {
+    const { keepSummary, summaryPreview } = toastConfig();
+    toast.update(message, "success", keepSummary ? 0 : undefined);
+    const preview = summaryPreview && summary ? summaryExcerpt(summary, PREVIEW_LENGTH) : "";
+    toast.setDetail(preview || null);
 }
 
 export function operationStatus(topicId: string): string | null {
@@ -154,7 +165,7 @@ export async function summarizeTopic(topicId: string, { mode = "manual", force =
         if (!hasSummary(topicId) && Summarized.has(topicId) && hasRemoteSource()) {
             setStatus("正在从云端拉取已有总结…");
             if (await pullRemote(topicId, signal)) {
-                op.toast.update("已从云端拉取总结", "success");
+                finishToast(op.toast, "已从云端拉取总结", Summaries.get(topicId)?.[0]?.summary);
                 outcome = "done";
                 return true;
             }
@@ -195,7 +206,7 @@ export async function summarizeTopic(topicId: string, { mode = "manual", force =
         const filter = config.filter();
         const summary = filter.enabled ? stripFences(raw, filter.prefixes, filter.suffixes) : raw.trim();
         addSummary(topicId, { summary, timestamp: new Date().toISOString(), model: profile.model || "未知模型", renderMode: renderModeOf(prompt, summary) });
-        op.toast.update(mode === "auto" ? "自动总结完成" : "总结完成", "success");
+        finishToast(op.toast, mode === "auto" ? "自动总结完成" : "总结完成", summary);
         outcome = "done";
         return true;
     } catch (error) {
