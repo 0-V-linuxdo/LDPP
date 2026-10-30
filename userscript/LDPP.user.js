@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261024.2
+// @version      20261030.1
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261024.2] v1.0.0 — a modification for linux.do
+ * LD++ [20261030.1] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -6844,6 +6844,9 @@ Please report this to https://github.com/markedjs/marked.`;
   var DownloadIcon = stroke(path("M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"), path("M7 10l5 5 5-5"), path("M12 15V3"));
   var CalendarClockIcon = stroke(path("M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"), path("M16 2v4"), path("M8 2v4"), path("M3 10h5"), path("M17.5 17.5 16 16.3V14"), circle(16, 16, 6));
   var LayoutGridIcon = stroke(["rect", { x: "3", y: "3", width: "7", height: "7", rx: "1" }], ["rect", { x: "14", y: "3", width: "7", height: "7", rx: "1" }], ["rect", { x: "14", y: "14", width: "7", height: "7", rx: "1" }], ["rect", { x: "3", y: "14", width: "7", height: "7", rx: "1" }]);
+  var EyeClosedIcon = stroke(path("m15 18-.722-3.25"), path("M2 8a10.645 10.645 0 0 0 20 0"), path("m20 15-1.726-2.05"), path("m4 15 1.726-2.05"), path("m9 18 .722-3.25"));
+  var TypeIcon = stroke(path("M12 4v16"), path("M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2"), path("M9 20h6"));
+  var MinimizeIcon = stroke(path("m14 10 7-7"), path("M20 10h-6V4"), path("m3 21 7-7"), path("M4 14h6v6"));
 
   // src/components/controls.ts
   function Button(label, { kind = "default", icon, title, small, disabled, onClick } = {}) {
@@ -12443,7 +12446,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261024.2] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"dfc608c"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261030.1] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"8186771"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -14947,8 +14950,172 @@ ${content.text}`
     }
   });
 
+  // src/plugins/navLabels/index.ts
+  var STYLE = "navLabels";
+  var COUNT_ATTR = "data-ldpp-count";
+  var TABS = [
+    { id: "latest", site: "最新", label: { name: "最新 (Latest)", sub: "帖子", color: "#0000ff" } },
+    { id: "new", site: "新", label: { name: "新 (Created)", sub: "话题", color: "#ff0000" } },
+    { id: "unread", site: "未读（Unread）", label: { name: "未读 (Unread)", sub: "帖子", color: "#0000ff" } },
+    { id: "unseen", site: "未读（Unseen）", label: { name: "未读 (Unseen)", sub: "帖子 + 话题", color: "" } },
+    { id: "top", site: "排行榜", label: { name: "活跃 (Top)", sub: "话题", color: "" } },
+    { id: "hot", site: "热门", label: { name: "热门 (Hot)", sub: "话题", color: "" } },
+    { id: "categories", site: "类别", label: { name: "类别 (Categories)", sub: "分组", color: "" } },
+    { id: "bookmarks", site: "书签", label: { name: "我的书签 (Bookmarks)", sub: "话题", color: "" } },
+    { id: "posted", site: "我的帖子", label: { name: "", sub: "", color: "" } },
+    { id: "read", site: "已读", label: { name: "", sub: "", color: "" } }
+  ];
+  var settings13 = definePluginSettings({
+    labels: { type: 6 /* CUSTOM */, default: {} },
+    editor: {
+      type: 5 /* COMPONENT */,
+      description: "导航标签",
+      render: () => renderEditor()
+    }
+  });
+  var HEX = /^#[\da-f]{6}$/i;
+  function tabLabel(id) {
+    const stored = settings13.store.labels?.[id] ?? {};
+    const base = TABS.find((tab) => tab.id === id).label;
+    const pick = (key) => typeof stored[key] === "string" ? stored[key] : base[key];
+    return { name: pick("name").trim(), sub: pick("sub").trim(), color: HEX.test(pick("color")) ? pick("color") : "" };
+  }
+  function setTabLabel(id, patch) {
+    const labels = settings13.store.labels ?? {};
+    settings13.store.labels = { ...labels, [id]: { ...tabLabel(id), ...patch } };
+  }
+  function cssString(text) {
+    return `"${text.replaceAll(/[\\"]/g, "\\$&").replaceAll(/[\r\n]+/g, " ")}"`;
+  }
+  function labelsCss(labels) {
+    const rules = [];
+    for (const [id, { name, sub, color }] of labels) {
+      const link = `#navigation-bar > li.nav-item_${id} > a`;
+      if (!name && !sub)
+        continue;
+      rules.push(`${link} {
+    position: relative;${name ? `
+    font-size: 0 !important;` : ""}
+}`);
+      if (name)
+        rules.push(`${link}::before {
+    content: ${cssString(name)} attr(${COUNT_ATTR});
+    font-size: 1rem;
+    padding: 0 0.65rem;
+    white-space: nowrap;
+}`);
+      if (sub)
+        rules.push(`${link}::after {
+    content: ${cssString(sub)};
+    position: absolute;
+    top: 0;
+    left: 0.65rem;
+    font-size: 0.625rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;${color ? `
+    color: ${color};` : ""}
+}`);
+    }
+    return rules.join(`
+`);
+  }
+  function tabCount(text) {
+    const match = text.trim().match(/\((\d+)\)$/);
+    return match ? ` (${match[1]})` : "";
+  }
+  function syncCounts(root = document) {
+    for (const link of root.querySelectorAll("#navigation-bar > li > a")) {
+      const count = tabCount(link.textContent ?? "");
+      if (count) {
+        if (link.getAttribute(COUNT_ATTR) !== count)
+          link.setAttribute(COUNT_ATTR, count);
+      } else if (link.hasAttribute(COUNT_ATTR))
+        link.removeAttribute(COUNT_ATTR);
+    }
+  }
+  var active4 = false;
+  var observer5 = null;
+  var frame3 = 0;
+  function watchCounts(on) {
+    if (on && !observer5) {
+      observer5 = new MutationObserver(() => {
+        if (frame3)
+          return;
+        frame3 = requestAnimationFrame(() => {
+          frame3 = 0;
+          syncCounts();
+        });
+      });
+      observer5.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+      syncCounts();
+    } else if (!on && observer5) {
+      observer5.disconnect();
+      observer5 = null;
+      if (frame3)
+        cancelAnimationFrame(frame3);
+      frame3 = 0;
+      for (const link of document.querySelectorAll(`[${COUNT_ATTR}]`))
+        link.removeAttribute(COUNT_ATTR);
+    }
+  }
+  function apply() {
+    const labels = TABS.map((tab) => [tab.id, tabLabel(tab.id)]);
+    const css = active4 ? labelsCss(labels) : "";
+    if (css)
+      registerStyle(STYLE, css);
+    else
+      unregisterStyle(STYLE);
+    watchCounts(active4 && labels.some(([, label]) => label.name));
+  }
+  function renderEditor() {
+    const root = h("div", { class: "ldpp-nav-labels" });
+    const render = () => {
+      const tabs = SubTabs(TABS.map((tab) => ({
+        label: () => tab.site,
+        render: () => {
+          const label = tabLabel(tab.id);
+          const picker = h("input", { type: "color", class: "ldpp-nav-labels-color", value: label.color || "#666666", title: "副标题颜色", hidden: !label.color });
+          picker.addEventListener("change", () => setTabLabel(tab.id, { color: picker.value }));
+          const mode = Select(label.color ? "custom" : "site", [
+            { label: "跟随站点", value: "site" },
+            { label: "自定义颜色", value: "custom" }
+          ], (value) => {
+            picker.hidden = value !== "custom";
+            setTabLabel(tab.id, { color: value === "custom" ? picker.value : "" });
+          });
+          return h("div", null, Field("名称", TextInput({ value: label.name, placeholder: `留空保留「${tab.site}」`, onChange: (name) => setTabLabel(tab.id, { name }) }), "站点显示的未读数等计数会接在名称后面。"), Field("副标题", TextInput({ value: label.sub, placeholder: "留空不显示", onChange: (sub) => setTabLabel(tab.id, { sub }) })), Field("副标题颜色", h("span", { class: "ldpp-field-control ldpp-nav-labels-color-row" }, mode, picker)));
+        }
+      })));
+      root.replaceChildren(tabs.el, h("div", { class: "ldpp-row-actions" }, Button("全部恢复默认", { small: true, onClick: () => {
+        settings13.store.labels = {};
+        render();
+      } })));
+    };
+    render();
+    return root;
+  }
+  var navLabels_default = definePlugin({
+    name: "NavLabels",
+    displayName: "导航标签自定义",
+    description: "给「最新」「新」「未读」等导航标签换名称（如中英对照），并在上方加一行小字副标题，颜色可跟随站点或自定义（来自「Clean Navigation」样式）。",
+    tags: ["reading"],
+    icon: TypeIcon,
+    enabledByDefault: false,
+    settings: settings13,
+    start() {
+      active4 = true;
+      apply();
+    },
+    stop() {
+      active4 = false;
+      apply();
+    },
+    onSettingsChange: apply
+  });
+
   // src/plugins/privacyBlur/index.ts
-  var STYLE = "privacyBlur";
+  var STYLE2 = "privacyBlur";
   var PARTS = {
     headerAvatar: ".d-header .current-user img.avatar, .d-header .header-dropdown-toggle.current-user img",
     badges: ".d-header .badge-notification, .d-header .unread-notifications, .d-header .unread-high-priority-notifications, .sidebar-section-link-content-badge, .sidebar-section-link-suffix.unread",
@@ -14956,7 +15123,7 @@ ${content.text}`
     messages: ".sidebar-section[data-section-name='messages'] .sidebar-section-content, .sidebar-section[data-section-name='user-messages'] .sidebar-section-content",
     ownPosts: ".topic-post.current-user-post .topic-avatar img.avatar, .topic-post.current-user-post .names, .topic-post.current-user-post .post-avatar img.avatar"
   };
-  var settings13 = definePluginSettings({
+  var settings14 = definePluginSettings({
     headerAvatar: { type: 2 /* BOOLEAN */, description: "模糊顶栏自己的头像。", default: true },
     badges: { type: 2 /* BOOLEAN */, description: "模糊顶栏和侧栏的未读 / 通知数。", default: true },
     userMenu: { type: 2 /* BOOLEAN */, description: "模糊用户菜单里的通知、私信、书签列表。", default: true },
@@ -14979,22 +15146,22 @@ ${hovered} {
     filter: none !important;
 }`;
   }
-  var active4 = false;
+  var active5 = false;
   var paused = false;
   var menuAdded = false;
-  function apply() {
-    const parts = Object.keys(PARTS).filter((part) => settings13.store[part]);
-    const css = active4 && !paused ? privacyCss(parts, settings13.store.strength) : "";
+  function apply2() {
+    const parts = Object.keys(PARTS).filter((part) => settings14.store[part]);
+    const css = active5 && !paused ? privacyCss(parts, settings14.store.strength) : "";
     if (css)
-      registerStyle(STYLE, css);
+      registerStyle(STYLE2, css);
     else
-      unregisterStyle(STYLE);
+      unregisterStyle(STYLE2);
   }
   function togglePause() {
-    if (!active4)
+    if (!active5)
       return;
     paused = !paused;
-    apply();
+    apply2();
     showToast(paused ? "隐私打码已暂停，直到再次切换或刷新页面" : "隐私打码已恢复", "info", { key: "privacy-blur" });
   }
   var privacyBlur_default = definePlugin({
@@ -15004,21 +15171,21 @@ ${hovered} {
     tags: ["privacy"],
     icon: EyeOffIcon,
     enabledByDefault: false,
-    settings: settings13,
+    settings: settings14,
     start() {
-      active4 = true;
+      active5 = true;
       paused = false;
       if (!menuAdded) {
         menuAdded = true;
         gmMenu("\uD83D\uDE48 暂停 / 恢复隐私打码", togglePause);
       }
-      apply();
+      apply2();
     },
     stop() {
-      active4 = false;
-      apply();
+      active5 = false;
+      apply2();
     },
-    onSettingsChange: apply
+    onSettingsChange: apply2
   });
 
   // ldpp-css:src/plugins/listSummary/styles.css
@@ -15129,7 +15296,7 @@ ${hovered} {
 `);
 
   // src/plugins/listSummary/index.ts
-  var settings14 = definePluginSettings({
+  var settings15 = definePluginSettings({
     singleExpand: {
       type: 2 /* BOOLEAN */,
       description: "只展开一个总结面板（打开新的会收起其他）。",
@@ -15240,7 +15407,7 @@ ${hovered} {
     panel.content = panel.view === "question" ? createQAPanel(topicId, { variant: "list" }) : createSummaryView(topicId, { variant: "list", onAsk: qaEnabled ? () => switchView(row, "question") : undefined });
     host.replaceChildren(h("div", {
       class: "ldpp-lsum",
-      style: { "--ldpp-lines": String(settings14.store.maxLines), "--ldpp-panel-width": `${settings14.store.widthPercent}%` }
+      style: { "--ldpp-lines": String(settings15.store.maxLines), "--ldpp-panel-width": `${settings15.store.widthPercent}%` }
     }, h("div", { class: "ldpp-lsum-head" }, h("span", { class: "ldpp-lsum-title" }, panel.view === "question" ? "提问 / 追问" : "AI 总结"), panel.view === "summary" ? panel.content.toolbar : null, IconButton(CloseIcon(14), { title: "收起", onClick: () => close(topicId) })), panel.content.el));
     if (panel.view === "question")
       panel.content.focus();
@@ -15255,7 +15422,7 @@ ${hovered} {
     refreshButtons(row.id);
   }
   function openPanel2(row, view) {
-    if (settings14.store.singleExpand) {
+    if (settings15.store.singleExpand) {
       for (const id of Array.from(open2.keys()))
         if (id !== row.id)
           close(id);
@@ -15270,7 +15437,7 @@ ${hovered} {
     open2.set(row.id, panel);
     mount2(row.id, panel, row);
     refreshButtons(row.id);
-    if (view === "summary" && settings14.store.autoSummarizeOnOpen && !hasSummary(row.id) && !operationStatus(row.id))
+    if (view === "summary" && settings15.store.autoSummarizeOnOpen && !hasSummary(row.id) && !operationStatus(row.id))
       summarizeTopic(row.id);
   }
   function toggle(row, view) {
@@ -15298,7 +15465,7 @@ ${hovered} {
     icon: ListIcon,
     enabledByDefault: true,
     dependencies: ["TopicSummary"],
-    settings: settings14,
+    settings: settings15,
     start() {
       registerDecorator({ id: "list-question", order: 30, render: renderQuestionButton });
       registerDecorator({ id: "list-summary", order: 40, render: renderSummaryButton });
@@ -15320,8 +15487,8 @@ ${hovered} {
     },
     onSettingsChange() {
       for (const [topicId, panel] of open2) {
-        panel.host?.querySelector(".ldpp-lsum")?.style.setProperty("--ldpp-lines", String(settings14.store.maxLines));
-        panel.host?.querySelector(".ldpp-lsum")?.style.setProperty("--ldpp-panel-width", `${settings14.store.widthPercent}%`);
+        panel.host?.querySelector(".ldpp-lsum")?.style.setProperty("--ldpp-lines", String(settings15.store.maxLines));
+        panel.host?.querySelector(".ldpp-lsum")?.style.setProperty("--ldpp-panel-width", `${settings15.store.widthPercent}%`);
         refreshButtons(topicId);
       }
     },
@@ -16119,11 +16286,11 @@ ${hovered} {
   // src/plugins/customIdentity/index.ts
   var SIZE_STYLE = "customIdentity-size";
   var SIZE_DEFAULT = 32;
-  var settings15 = definePluginSettings({
+  var settings16 = definePluginSettings({
     avatar: {
       type: 5 /* COMPONENT */,
       description: "头像",
-      render: () => AvatarEditor(settings15.store)
+      render: () => AvatarEditor(settings16.store)
     },
     displayName: {
       type: 0 /* STRING */,
@@ -16152,25 +16319,25 @@ ${hovered} {
     cropY: { type: 6 /* CUSTOM */, default: 0.5 },
     cropZoom: { type: 6 /* CUSTOM */, default: 1 }
   });
-  var active5 = false;
-  var observer5 = null;
-  var frame3 = 0;
-  function apply2() {
-    if (!active5)
+  var active6 = false;
+  var observer6 = null;
+  var frame4 = 0;
+  function apply3() {
+    if (!active6)
       return;
     const username = currentAccount()?.username.toLowerCase();
     if (!username)
       return;
     paintIdentity(document, {
       username,
-      avatar: usableAvatar(String(settings15.store.avatarUrl ?? "")),
-      name: settings15.store.displayName.trim(),
-      everywhere: settings15.store.everywhere
+      avatar: usableAvatar(String(settings16.store.avatarUrl ?? "")),
+      name: settings16.store.displayName.trim(),
+      everywhere: settings16.store.everywhere
     });
   }
   function applySize() {
-    const size = Math.round(settings15.store.headerSize);
-    if (!active5 || size === SIZE_DEFAULT) {
+    const size = Math.round(settings16.store.headerSize);
+    if (!active6 || size === SIZE_DEFAULT) {
       unregisterStyle(SIZE_STYLE);
       return;
     }
@@ -16180,11 +16347,11 @@ ${hovered} {
 }`);
   }
   function schedule4() {
-    if (frame3)
+    if (frame4)
       return;
-    frame3 = requestAnimationFrame(() => {
-      frame3 = 0;
-      apply2();
+    frame4 = requestAnimationFrame(() => {
+      frame4 = 0;
+      apply3();
     });
   }
   function onMutations(mutations) {
@@ -16203,27 +16370,27 @@ ${hovered} {
     tags: ["privacy"],
     icon: UserRoundPenIcon,
     enabledByDefault: false,
-    settings: settings15,
+    settings: settings16,
     managedStyle: "customIdentity",
     start() {
-      active5 = true;
-      observer5 = new MutationObserver(onMutations);
-      observer5.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });
+      active6 = true;
+      observer6 = new MutationObserver(onMutations);
+      observer6.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });
       applySize();
-      apply2();
+      apply3();
     },
     stop() {
-      active5 = false;
-      observer5?.disconnect();
-      observer5 = null;
-      cancelAnimationFrame(frame3);
-      frame3 = 0;
+      active6 = false;
+      observer6?.disconnect();
+      observer6 = null;
+      cancelAnimationFrame(frame4);
+      frame4 = 0;
       applySize();
       restoreIdentity(document);
     },
     onSettingsChange() {
       applySize();
-      apply2();
+      apply3();
     }
   });
 
@@ -16398,7 +16565,7 @@ ${hovered} {
 
   // src/plugins/recentTopics/index.ts
   var KEY2 = "LDPP.recentTopics";
-  var settings16 = definePluginSettings({
+  var settings17 = definePluginSettings({
     maxItems: {
       type: 4 /* SLIDER */,
       description: "切换器里最多显示几个话题。",
@@ -16469,7 +16636,7 @@ ${hovered} {
         save(patchRecent(load(), item.id, { title: text }));
       });
     }
-    const summary = settings16.store.showSummary ? Summaries.get(item.id)?.[0]?.summary : undefined;
+    const summary = settings17.store.showSummary ? Summaries.get(item.id)?.[0]?.summary : undefined;
     const meta = [item.id === currentId ? "当前" : timeAgo(item.visitedAt), item.floor > 1 ? `读到 #${item.floor}` : ""].filter(Boolean).join(" · ");
     return h("button", {
       type: "button",
@@ -16496,7 +16663,7 @@ ${hovered} {
     }
   }
   function openSwitcher() {
-    items = load().slice(0, settings16.store.maxItems);
+    items = load().slice(0, settings17.store.maxItems);
     if (!items.length) {
       showToast("还没有最近打开的话题。", "info", { key: "recent-topics" });
       return;
@@ -16574,7 +16741,7 @@ ${hovered} {
     if (!overlay || !holding || event.key !== "Control")
       return;
     holding = false;
-    if (settings16.store.releaseToOpen)
+    if (settings17.store.releaseToOpen)
       openAt(selected);
   }
   function onBlur() {
@@ -16588,7 +16755,7 @@ ${hovered} {
     tags: ["reading"],
     icon: LayoutGridIcon,
     enabledByDefault: true,
-    settings: settings16,
+    settings: settings17,
     start() {
       listeners6 = new AbortController;
       const { signal } = listeners6;
@@ -16620,7 +16787,7 @@ ${hovered} {
   function previewSound() {
     playSound();
   }
-  var settings17 = definePluginSettings({
+  var settings18 = definePluginSettings({
     sound: {
       type: 2 /* BOOLEAN */,
       description: "完成或失败时播放提示音。",
@@ -16693,7 +16860,7 @@ ${hovered} {
     }
   }
   async function playSound() {
-    const url = settings17.store.soundUrl.trim();
+    const url = settings18.store.soundUrl.trim();
     try {
       if (url)
         await new Audio(url).play();
@@ -16770,7 +16937,7 @@ ${message ?? ""}`.trim(),
     }
   }
   async function renderFavicon() {
-    const state = settings17.store.favicon && active6 ? tabState(running2.size, finished) : "idle";
+    const state = settings18.store.favicon && active7 ? tabState(running2.size, finished) : "idle";
     if (state === shownState)
       return;
     shownState = state;
@@ -16794,7 +16961,7 @@ ${message ?? ""}`.trim(),
     finished = null;
     renderFavicon();
   }
-  var active6 = false;
+  var active7 = false;
   var completionAlert_default = definePlugin({
     name: "CompletionAlert",
     displayName: "后台完成提醒",
@@ -16802,13 +16969,13 @@ ${message ?? ""}`.trim(),
     tags: ["ai"],
     icon: BellIcon,
     enabledByDefault: true,
-    settings: settings17,
+    settings: settings18,
     start() {
-      active6 = true;
+      active7 = true;
       document.addEventListener("visibilitychange", onVisible);
     },
     stop() {
-      active6 = false;
+      active7 = false;
       running2.clear();
       finished = null;
       document.removeEventListener("visibilitychange", onVisible);
@@ -16830,11 +16997,11 @@ ${message ?? ""}`.trim(),
         if (state !== "cancel" && hidden)
           finished = state === "error" || finished === "error" ? "error" : "done";
         renderFavicon();
-        if (state === "cancel" || settings17.store.onlyHidden && !hidden)
+        if (state === "cancel" || settings18.store.onlyHidden && !hidden)
           return;
-        if (settings17.store.sound)
+        if (settings18.store.sound)
           playSound();
-        if (settings17.store.systemNotification)
+        if (settings18.store.systemNotification)
           systemNotify(kind, topicId, state === "done", message);
       }
     }
@@ -17274,7 +17441,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   var DRAIN_DELAY_MS = 300;
   var FIX_HIGHLIGHT = "ldpp-title-fix";
   var profileOptions = () => [{ label: "跟随默认 AI 配置", value: "" }, ...profileChoices()];
-  var settings18 = definePluginSettings({
+  var settings19 = definePluginSettings({
     autoRewrite: {
       type: 2 /* BOOLEAN */,
       description: "判定为标题党后自动读取首帖并改写标题（关闭时可点击 ✦ 按钮手动改写）。",
@@ -17354,7 +17521,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   var fixTimer = null;
   var fixDraining = false;
   function inScope() {
-    scopeRegex ??= compileScope(checkScope(settings18.store.scope).rules);
+    scopeRegex ??= compileScope(checkScope(settings19.store.scope).rules);
     return scopeMatches(scopeRegex, location.href);
   }
   function stateFor(topicId, title) {
@@ -17365,7 +17532,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     return stateFor(topicId, title) ?? { originalTitle: title, updatedAt: "" };
   }
   function shownFixes(state) {
-    return settings18.store.fixTypos && state && !state.rewrittenTitle ? state.fixes ?? [] : [];
+    return settings19.store.fixTypos && state && !state.rewrittenTitle ? state.fixes ?? [] : [];
   }
   function errorFor(topicId, title) {
     const error = errors2.get(topicId);
@@ -17478,8 +17645,8 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     }, DRAIN_DELAY_MS);
   }
   async function judgeBatch(batch) {
-    const profile = getProfile(String(settings18.store.judgeProfile ?? "") || undefined);
-    const text = await chatWithRetry(profile, buildJudgeMessages(settings18.store.judgePrompt, batch));
+    const profile = getProfile(String(settings19.store.judgeProfile ?? "") || undefined);
+    const text = await chatWithRetry(profile, buildJudgeMessages(settings19.store.judgePrompt, batch));
     const results = new Map(parseJudge(text).map((result) => [result.topicId, result]));
     const now = new Date().toISOString();
     const updates = {};
@@ -17554,8 +17721,8 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     }, DRAIN_DELAY_MS);
   }
   async function fixBatch(batch) {
-    const profile = getProfile(String(settings18.store.judgeProfile ?? "") || undefined);
-    const found = parseFixes(await chatWithRetry(profile, buildFixMessages(settings18.store.fixPrompt, batch)));
+    const profile = getProfile(String(settings19.store.judgeProfile ?? "") || undefined);
+    const found = parseFixes(await chatWithRetry(profile, buildFixMessages(settings19.store.fixPrompt, batch)));
     const now = new Date().toISOString();
     const updates = {};
     for (const input of batch) {
@@ -17573,7 +17740,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       return;
     fixDraining = true;
     try {
-      while (fixQueue.size && isPluginEnabled("DeArrow") && settings18.store.fixTypos) {
+      while (fixQueue.size && isPluginEnabled("DeArrow") && settings19.store.fixTypos) {
         const picked = Array.from(fixQueue.values()).slice(0, FIX_BATCH);
         for (const item of picked) {
           fixQueue.delete(item.topicId);
@@ -17633,7 +17800,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
         await judgeBatch([input]);
       if (automatic && stateFor(topicId, title)?.verdict !== true)
         return;
-      const profile = requireProfile(getProfile(String(settings18.store.rewriteProfile ?? "") || undefined));
+      const profile = requireProfile(getProfile(String(settings19.store.rewriteProfile ?? "") || undefined));
       setPhase("正在读取首帖…");
       const content = await buildTopicContent(topicId, {
         firstPostOnly: true,
@@ -17646,7 +17813,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
         throw new Error(profile.imageInput ? "首帖只有图片，且图片准备失败" : "首帖只有图片，请在改写所用的 AI 配置中开启图片输入");
       }
       setPhase("正在改写标题…");
-      const messages = buildRewriteMessages(settings18.store.rewritePrompt, title, content.text, images.length);
+      const messages = buildRewriteMessages(settings19.store.rewritePrompt, title, content.text, images.length);
       messages[1].content = userContent(messages[1].content, images);
       const rewritten = parseRewrite(await chatWithRetry(profile, messages));
       const current = DeArrowStates.get(topicId);
@@ -17721,14 +17888,14 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       } else if (marked2.delete(row.id)) {
         setTitleMark(row.id, null);
       }
-      if (automatic && !row.hidden && settings18.store.fixTypos && !state?.rewrittenTitle && !state?.fixCheckedAt && !fixing.has(row.id) && fixFailed.get(row.id) !== row.originalTitle && !heldElsewhere("fix", row.id)) {
+      if (automatic && !row.hidden && settings19.store.fixTypos && !state?.rewrittenTitle && !state?.fixCheckedAt && !fixing.has(row.id) && fixFailed.get(row.id) !== row.originalTitle && !heldElsewhere("fix", row.id)) {
         fixQueue.set(row.id, { topicId: row.id, title: row.originalTitle });
       }
       if (!automatic || row.hidden || errorFor(row.id, row.originalTitle))
         continue;
       if (typeof state?.verdict !== "boolean" && !judging.has(row.id) && !rewriting.has(row.id) && !heldElsewhere("judge", row.id)) {
         judgeQueue.set(row.id, { topicId: row.id, title: row.originalTitle });
-      } else if (settings18.store.autoRewrite && state?.verdict === true && !state.rewrittenTitle && !rewriting.has(row.id) && !heldElsewhere("rewrite", row.id) && !autoQueue.some((item) => item.topicId === row.id)) {
+      } else if (settings19.store.autoRewrite && state?.verdict === true && !state.rewrittenTitle && !rewriting.has(row.id) && !heldElsewhere("rewrite", row.id) && !autoQueue.some((item) => item.topicId === row.id)) {
         autoQueue.push({ topicId: row.id, title: row.originalTitle });
       }
     }
@@ -17744,7 +17911,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     description: "在作用范围内的话题列表里自动用 AI 判断标题党，并根据首帖改写成具体中立的标题；其他列表也显示按钮和已改写的标题，可手动改写。还可修正标题里的错别字，改过的字带点状下划线。悬停 ✦ 按钮可临时查看原标题。改写和修正只影响显示，屏蔽规则始终匹配原标题。",
     tags: ["ai", "topics"],
     icon: DeArrowIcon,
-    settings: settings18,
+    settings: settings19,
     start() {
       scopeRegex = null;
       registerDecorator({ id: "dearrow", order: 20, render: renderButton2 });
@@ -17769,9 +17936,9 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     },
     onSettingsChange() {
       scopeRegex = null;
-      if (!settings18.store.autoRewrite)
+      if (!settings19.store.autoRewrite)
         autoQueue.length = 0;
-      if (!settings18.store.fixTypos)
+      if (!settings19.store.fixTypos)
         fixQueue.clear();
       schedule();
     },
@@ -17786,7 +17953,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   });
 
   // src/plugins/posterAvatars/index.ts
-  var STYLE2 = "posterAvatars-layout";
+  var STYLE3 = "posterAvatars-layout";
   var AVATARS = "td.posters.topic-list-data > a:first-child > img, td.posters.topic-list-data > a.latest > img";
   var ORIGINAL = "data-ldpp-avatar-src";
   var AVATAR_CSS = `.topic-list td.topic-list-data.posters {
@@ -17837,12 +18004,12 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     enabledByDefault: true,
     startAt: "Init" /* Init */,
     start() {
-      registerStyle(STYLE2, AVATAR_CSS);
+      registerStyle(STYLE3, AVATAR_CSS);
       registerProcessor({ id: "poster-avatars", run: enlargeAvatars });
     },
     stop() {
       unregisterProcessor("poster-avatars");
-      unregisterStyle(STYLE2);
+      unregisterStyle(STYLE3);
       restoreAvatars();
     }
   });
@@ -17887,7 +18054,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
 `);
 
   // src/plugins/noWatermark/index.ts
-  var STYLE3 = "no-watermark";
+  var STYLE4 = "no-watermark";
   var FULL_SCAN_DELAY_MS = 400;
   var SAFETY_SCAN_MS = 20000;
   var QUICK_SCAN_LIMIT = 400;
@@ -17896,13 +18063,13 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   var lastScan = null;
   var revealing = false;
   var notified = false;
-  var observer6 = null;
+  var observer7 = null;
   var fullTimer = null;
   var safetyTimer = null;
-  var frame4 = 0;
+  var frame5 = 0;
   var pending3 = new Set;
   var refreshView = null;
-  var settings19 = definePluginSettings({
+  var settings20 = definePluginSettings({
     notify: {
       type: 2 /* BOOLEAN */,
       description: "发现并隐藏水印时提示一次",
@@ -17917,15 +18084,15 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   var sameFinding = (a, b) => a.el === b.el && a.pseudo === b.pseudo && a.part === b.part;
   function writeStyle() {
     findings = findings.filter((finding) => finding.el.isConnected);
-    registerStyle(STYLE3, hidingCss(findings));
+    registerStyle(STYLE4, hidingCss(findings));
     if (revealing)
-      disableStyle(STYLE3);
+      disableStyle(STYLE4);
     refreshView?.();
   }
   function report2(fresh) {
     for (const finding of fresh)
       logger14.info(`已隐藏 ${describe(finding.el)}${finding.pseudo}：${finding.reasons.join("、")}`);
-    if (!fresh.length || notified || !settings19.store.notify)
+    if (!fresh.length || notified || !settings20.store.notify)
       return;
     notified = true;
     showToast(`已隐藏 ${findings.length} 处疑似水印，截图里不会出现（LD++ 设置 → 去除隐藏水印 → 本页检测）`, "info", { key: "no-watermark" });
@@ -17940,11 +18107,11 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   function measured(measure) {
     if (!findings.length || revealing)
       return measure();
-    disableStyle(STYLE3);
+    disableStyle(STYLE4);
     try {
       return measure();
     } finally {
-      enableStyle(STYLE3);
+      enableStyle(STYLE4);
     }
   }
   function fullScan() {
@@ -17973,7 +18140,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     }, delay);
   }
   function flushPending() {
-    frame4 = 0;
+    frame5 = 0;
     if (!pending3.size)
       return;
     const detector = new Detector(currentAccount());
@@ -17999,14 +18166,14 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   function queue(node) {
     const el = outerHost(node);
     pending3.add(el);
-    if (frame4)
+    if (frame5)
       return;
-    frame4 = typeof requestAnimationFrame === "function" && document.visibilityState !== "hidden" ? requestAnimationFrame(flushPending) : setTimeout(flushPending, 16);
+    frame5 = typeof requestAnimationFrame === "function" && document.visibilityState !== "hidden" ? requestAnimationFrame(flushPending) : setTimeout(flushPending, 16);
   }
   var isStyleSheet = (node) => node instanceof Element && node.matches("style, link[rel~='stylesheet']");
   var OBSERVE = { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"] };
   function watchRoot(root) {
-    observer6?.observe(root, OBSERVE);
+    observer7?.observe(root, OBSERVE);
     queue(root.host);
   }
   function onMutations2(records) {
@@ -18034,9 +18201,9 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
   function setRevealing(value) {
     revealing = value;
     if (value)
-      disableStyle(STYLE3);
+      disableStyle(STYLE4);
     else
-      enableStyle(STYLE3);
+      enableStyle(STYLE4);
   }
   function renderReport() {
     const root = h("div", { class: "ldpp-nwm-report" });
@@ -18065,10 +18232,10 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
     icon: EraserIcon,
     enabledByDefault: true,
     startAt: "Init" /* Init */,
-    settings: settings19,
+    settings: settings20,
     start() {
-      observer6 = new MutationObserver(onMutations2);
-      observer6.observe(document.documentElement, OBSERVE);
+      observer7 = new MutationObserver(onMutations2);
+      observer7.observe(document.documentElement, OBSERVE);
       hookShadowRoots(watchRoot);
       scheduleFull(0);
       safetyTimer = setInterval(() => {
@@ -18078,8 +18245,8 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       }, SAFETY_SCAN_MS);
     },
     stop() {
-      observer6?.disconnect();
-      observer6 = null;
+      observer7?.disconnect();
+      observer7 = null;
       unhookShadowRoots();
       if (fullTimer)
         clearTimeout(fullTimer);
@@ -18089,7 +18256,7 @@ tr.topic-list-item td.main-link:has(.ldpp-slot[data-slot="dearrow"] > .ldpp-dear
       pending3.clear();
       findings = [];
       revealing = false;
-      unregisterStyle(STYLE3);
+      unregisterStyle(STYLE4);
       refreshView?.();
     },
     events: {
@@ -18443,7 +18610,7 @@ ${posts}
   var logger15 = new Logger("TopicExport", "#f9e2af");
   var BUTTON = "ldpp-export-button";
   var FOOTER = "#topic-footer-buttons .topic-footer-main-buttons, #topic-footer-buttons .topic-footer-main-buttons__actions";
-  var settings20 = definePluginSettings({
+  var settings21 = definePluginSettings({
     includeSummary: {
       type: 2 /* BOOLEAN */,
       description: "导出时在开头附上该话题最新一次 AI 总结（如果有）。",
@@ -18461,7 +18628,7 @@ ${posts}
         onRetry: (info) => toast.update(`linux.do 限流，${info.delaySeconds} 秒后重试（${info.attempt}/${info.total}）…`, "loading")
       });
       rememberTopicTitle(topicId, title);
-      const summary = settings20.store.includeSummary ? Summaries.get(topicId)?.[0]?.summary : undefined;
+      const summary = settings21.store.includeSummary ? Summaries.get(topicId)?.[0]?.summary : undefined;
       const topic = { topicId, title, url: `${location.origin}/t/topic/${topicId}`, posts, summary, exportedAt: new Date };
       const spec = FORMATS.find((item) => item.id === format) ?? FORMATS[0];
       downloadText(renderExport(topic, spec.id), exportFileName(topic, spec.id), spec.mime);
@@ -18522,7 +18689,7 @@ ${posts}
     }, DownloadIcon(14), h("span", { class: "d-button-label" }, "导出")), "export-button");
     footer.append(button);
   }
-  var observer7 = null;
+  var observer8 = null;
   var timer2;
   var topicExport_default = definePlugin({
     name: "TopicExport",
@@ -18531,20 +18698,20 @@ ${posts}
     tags: ["reading"],
     icon: DownloadIcon,
     enabledByDefault: true,
-    settings: settings20,
+    settings: settings21,
     start() {
-      observer7 = new MutationObserver(() => {
+      observer8 = new MutationObserver(() => {
         timer2 ??= setTimeout(() => {
           timer2 = undefined;
           ensureButton();
         }, 150);
       });
-      observer7.observe(document.documentElement, { childList: true, subtree: true });
+      observer8.observe(document.documentElement, { childList: true, subtree: true });
       ensureButton();
     },
     stop() {
-      observer7?.disconnect();
-      observer7 = null;
+      observer8?.disconnect();
+      observer8 = null;
       clearTimeout(timer2);
       timer2 = undefined;
       closeMenu();
@@ -18558,7 +18725,7 @@ ${posts}
 
   // src/plugins/customGreeting/index.ts
   var TITLE = ".welcome-banner__title";
-  var STYLE4 = "customGreeting-banner";
+  var STYLE5 = "customGreeting-banner";
   var LEGACY_STYLE_ID = "gc-greeting-style-v1";
   var HOME_PATHS = new Set(["/", "/latest", "/top", "/new", "/unread", "/hot", "/categories"]);
   var DEFAULT_GREETINGS = [
@@ -18567,7 +18734,7 @@ ${posts}
     "The best way to predict the future is to create it."
   ].join(`
 `);
-  var settings21 = definePluginSettings({
+  var settings22 = definePluginSettings({
     mode: {
       type: 3 /* SELECT */,
       description: "切换时机",
@@ -18635,49 +18802,49 @@ ${TITLE} {
     user-select: none !important;
 }` : ""}`;
   }
-  var mode = () => ["interval", "manual"].includes(String(settings21.store.mode)) ? settings21.store.mode : "refresh";
-  var greetings = () => parseGreetings(settings21.store.phrases);
+  var mode = () => ["interval", "manual"].includes(String(settings22.store.mode)) ? settings22.store.mode : "refresh";
+  var greetings = () => parseGreetings(settings22.store.phrases);
   var isHome = () => HOME_PATHS.has(location.pathname.replace(/\/+$/, "") || "/");
   function pickNextIndex(length, advance, random = Math.random) {
     if (length <= 0)
       return 0;
-    const current = Number(settings21.store.greetIndex ?? -1);
+    const current = Number(settings22.store.greetIndex ?? -1);
     if (length === 1) {
-      settings21.store.greetIndex = 0;
+      settings22.store.greetIndex = 0;
       return 0;
     }
     if (!advance) {
       if (current >= 0 && current < length)
         return current;
-      settings21.store.greetIndex = 0;
+      settings22.store.greetIndex = 0;
       return 0;
     }
-    if (settings21.store.order === "random") {
-      const previous = current >= 0 && current < length ? current : Number(settings21.store.lastRandom ?? -1);
+    if (settings22.store.order === "random") {
+      const previous = current >= 0 && current < length ? current : Number(settings22.store.lastRandom ?? -1);
       let next = Math.floor(random() * length);
       for (let guard = 0;next === previous && guard < 10; guard++)
         next = Math.floor(random() * length);
-      settings21.store.greetIndex = next;
-      settings21.store.lastRandom = next;
+      settings22.store.greetIndex = next;
+      settings22.store.lastRandom = next;
       return next;
     }
     const next = ((current >= -1 && current < length ? current : -1) + 1) % length;
-    settings21.store.greetIndex = next;
+    settings22.store.greetIndex = next;
     return next;
   }
-  var active7 = false;
+  var active8 = false;
   var wasHome = false;
   var timer3;
   var listeners7 = null;
   var warnedLegacy3 = false;
   function paint(advance) {
     const list = greetings();
-    if (!active7 || !list.length) {
-      unregisterStyle(STYLE4);
+    if (!active8 || !list.length) {
+      unregisterStyle(STYLE5);
       return;
     }
     const index = pickNextIndex(list.length, advance);
-    registerStyle(STYLE4, greetingCss(list[index] ?? list[0], mode() === "manual" && list.length > 1));
+    registerStyle(STYLE5, greetingCss(list[index] ?? list[0], mode() === "manual" && list.length > 1));
   }
   function stopTimer() {
     if (timer3 !== undefined)
@@ -18686,9 +18853,9 @@ ${TITLE} {
   }
   function startTimerIfNeeded() {
     stopTimer();
-    if (!active7 || !isHome() || mode() !== "interval" || greetings().length <= 1)
+    if (!active8 || !isHome() || mode() !== "interval" || greetings().length <= 1)
       return;
-    const seconds = Math.min(3600, Math.max(1, Number(settings21.store.intervalSec) || 10));
+    const seconds = Math.min(3600, Math.max(1, Number(settings22.store.intervalSec) || 10));
     timer3 = setInterval(() => paint(true), seconds * 1000);
   }
   function warnLegacy() {
@@ -18739,9 +18906,9 @@ ${TITLE} {
     tags: ["reading"],
     icon: MessageCircleIcon,
     enabledByDefault: true,
-    settings: settings21,
+    settings: settings22,
     start() {
-      active7 = true;
+      active8 = true;
       wasHome = false;
       listeners7 = new AbortController;
       document.addEventListener("click", onClick, { signal: listeners7.signal });
@@ -18751,12 +18918,12 @@ ${TITLE} {
         paint(false);
     },
     stop() {
-      active7 = false;
+      active8 = false;
       wasHome = false;
       listeners7?.abort();
       listeners7 = null;
       stopTimer();
-      unregisterStyle(STYLE4);
+      unregisterStyle(STYLE5);
     },
     events: {
       navigate: onRoute
@@ -18765,6 +18932,128 @@ ${TITLE} {
       paint(false);
       startTimerIfNeeded();
     }
+  });
+
+  // src/plugins/hideElements/index.ts
+  var STYLE6 = "hideElements";
+  var PARTS2 = {
+    headerCreate: "button.header-create-topic",
+    languageSwitcher: "button.language-switcher-trigger",
+    themeToggle: "div.sidebar-theme-toggle__wrapper",
+    globalNotice: "div.alert.alert-info.alert-global-notice",
+    navCreate: ".navigation-controls #create-topic",
+    dismissRead: ".navigation-controls .dismiss-container-top .dismiss-read",
+    postedTab: "#navigation-bar > li.posted.nav-item_posted",
+    outlets: "[class*='discovery-list-container-top-outlet'], [class*='topic-above-post-stream-outlet'], [class*='topic-above-suggested-outlet']"
+  };
+  var settings23 = definePluginSettings({
+    headerCreate: { type: 2 /* BOOLEAN */, description: "顶栏：隐藏「新建话题」按钮", default: true },
+    languageSwitcher: { type: 2 /* BOOLEAN */, description: "顶栏：隐藏语言切换按钮", default: true },
+    themeToggle: { type: 2 /* BOOLEAN */, description: "侧栏：隐藏底部的主题切换", default: true },
+    globalNotice: { type: 2 /* BOOLEAN */, description: "隐藏搜索框上方的全站公告（社区准则提示）", default: true },
+    navCreate: { type: 2 /* BOOLEAN */, description: "导航栏：隐藏「新建话题」按钮", default: true },
+    dismissRead: { type: 2 /* BOOLEAN */, description: "导航栏：隐藏「忽略」已读按钮", default: true },
+    postedTab: { type: 2 /* BOOLEAN */, description: "导航栏：隐藏「我的帖子」标签", default: true },
+    outlets: { type: 2 /* BOOLEAN */, description: "隐藏话题列表顶部和帖子上方、推荐话题上方的插件位（站点放公告、活动的位置）", default: true }
+  });
+  function hideCss(parts) {
+    if (!parts.length)
+      return "";
+    return `${parts.map((part) => PARTS2[part]).join(`,
+`)} {
+    display: none !important;
+}`;
+  }
+  var active9 = false;
+  function apply4() {
+    const parts = Object.keys(PARTS2).filter((part) => settings23.store[part]);
+    const css = active9 ? hideCss(parts) : "";
+    if (css)
+      registerStyle(STYLE6, css);
+    else
+      unregisterStyle(STYLE6);
+  }
+  var hideElements_default = definePlugin({
+    name: "HideElements",
+    displayName: "隐藏界面元素",
+    description: "隐藏顶栏、侧栏、导航栏里用不到的按钮、标签和公告，每项单独开关（来自「Clean Navigation」样式）。",
+    tags: ["reading"],
+    icon: EyeClosedIcon,
+    enabledByDefault: false,
+    startAt: "Init" /* Init */,
+    settings: settings23,
+    start() {
+      active9 = true;
+      apply4();
+    },
+    stop() {
+      active9 = false;
+      apply4();
+    },
+    onSettingsChange: apply4
+  });
+
+  // src/plugins/compactStyle/index.ts
+  var STYLE7 = "compactStyle";
+  var PARTS3 = {
+    sidebarHeadings: `span.sidebar-section-header-text {
+    color: var(--primary-medium);
+    font-size: 15px;
+    font-weight: 451;
+}`,
+    sidebarSections: `div.sidebar-sections {
+    padding: 0 !important;
+}
+div.sidebar-section.sidebar-section-wrapper {
+    border-style: none;
+}`,
+    searchBanner: `div.wrap.custom-search-banner-wrap {
+    padding: 0;
+}`,
+    timerHeading: `h3.topic-timer-heading {
+    font-weight: 100;
+    font-style: normal;
+    font-size: 14px;
+    padding-bottom: 0;
+}`
+  };
+  var settings24 = definePluginSettings({
+    sidebarHeadings: { type: 2 /* BOOLEAN */, description: "侧栏分区标题改为灰色、15px", default: true },
+    sidebarSections: { type: 2 /* BOOLEAN */, description: "侧栏去掉外边距和分区之间的分隔线", default: true },
+    searchBanner: { type: 2 /* BOOLEAN */, description: "首页搜索横幅去掉内边距", default: true },
+    timerHeading: { type: 2 /* BOOLEAN */, description: "话题计时器（如「将于 … 关闭」）的标题改为细体小字", default: true }
+  });
+  function compactCss(parts) {
+    return parts.map((part) => PARTS3[part]).join(`
+`);
+  }
+  var active10 = false;
+  function apply5() {
+    const parts = Object.keys(PARTS3).filter((part) => settings24.store[part]);
+    const css = active10 ? compactCss(parts) : "";
+    if (css)
+      registerStyle(STYLE7, css);
+    else
+      unregisterStyle(STYLE7);
+  }
+  var compactStyle_default = definePlugin({
+    name: "CompactStyle",
+    displayName: "紧凑样式",
+    description: "侧栏标题变灰变小、去掉侧栏边距和分隔线、搜索横幅去内边距、计时器标题改细体，每项单独开关（来自「Clean Navigation」样式）。",
+    tags: ["reading"],
+    icon: MinimizeIcon,
+    enabledByDefault: false,
+    startAt: "Init" /* Init */,
+    settings: settings24,
+    start() {
+      active10 = true;
+      apply5();
+    },
+    stop() {
+      active10 = false;
+      apply5();
+    },
+    onSettingsChange: apply5
   });
 
   // node_modules/pangu/dist/shared/index.js
@@ -19876,7 +20165,7 @@ ${TITLE} {
     }, h("span", { class: "d-button-label" }, "混排优化")), "pangu-button");
     create.after(button);
   }
-  var observer8 = null;
+  var observer9 = null;
   var flushTimer2;
   var pending4 = new Set;
   function addRoot(el) {
@@ -19922,14 +20211,14 @@ ${TITLE} {
     icon: LanguagesIcon,
     enabledByDefault: true,
     start() {
-      observer8 = new MutationObserver(onMutations3);
-      observer8.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+      observer9 = new MutationObserver(onMutations3);
+      observer9.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
       collect(document.documentElement);
       flush();
     },
     stop() {
-      observer8?.disconnect();
-      observer8 = null;
+      observer9?.disconnect();
+      observer9 = null;
       clearTimeout(flushTimer2);
       flushTimer2 = undefined;
       pending4.clear();
@@ -19981,7 +20270,7 @@ div#reply-control .reply-area {
 .d-header .d-header-icons .icon img.avatar {
     height: 2em !important;
 }`;
-  var settings22 = definePluginSettings({
+  var settings25 = definePluginSettings({
     wide: {
       type: 2 /* BOOLEAN */,
       description: "超宽显示：页面内容铺满整个窗口宽度",
@@ -19993,12 +20282,12 @@ div#reply-control .reply-area {
       default: true
     }
   });
-  function apply3() {
-    if (settings22.store.wide !== false)
+  function apply6() {
+    if (settings25.store.wide !== false)
       registerStyle(WIDE_STYLE, WIDE_CSS);
     else
       unregisterStyle(WIDE_STYLE);
-    if (settings22.store.thinHeader !== false)
+    if (settings25.store.thinHeader !== false)
       registerStyle(THIN_STYLE, THIN_HEADER_CSS);
     else
       unregisterStyle(THIN_STYLE);
@@ -20011,13 +20300,13 @@ div#reply-control .reply-area {
     icon: WideIcon,
     enabledByDefault: true,
     startAt: "Init" /* Init */,
-    settings: settings22,
-    start: apply3,
+    settings: settings25,
+    start: apply6,
     stop() {
       unregisterStyle(WIDE_STYLE);
       unregisterStyle(THIN_STYLE);
     },
-    onSettingsChange: apply3
+    onSettingsChange: apply6
   });
 
   // ldpp-css:src/plugins/driveSync/styles.css
@@ -20441,7 +20730,7 @@ div#reply-control .reply-area {
   var logger16 = new Logger("DriveSync", "#89b4fa");
   var DEFAULT_FOLDER = "[LINUX DO] \uD83C\uDF1F 话题 & 回复 总结";
   var AUTO_DELAY_MS = 3000;
-  var settings23 = definePluginSettings({
+  var settings26 = definePluginSettings({
     clientId: {
       type: 0 /* STRING */,
       description: "OAuth Client ID",
@@ -20486,14 +20775,14 @@ div#reply-control .reply-area {
   var statusListeners = new Set;
   var unsubs3 = [];
   function client() {
-    const { clientId, clientSecret, refreshToken } = settings23.store;
+    const { clientId, clientSecret, refreshToken } = settings26.store;
     const key = `${clientId}\x00${clientSecret}\x00${refreshToken}`;
     if (cached?.key !== key)
       cached = { key, client: new DriveClient({ clientId, clientSecret, refreshToken }) };
     return cached.client;
   }
   function engine() {
-    return new DriveSync(client(), settings23.store.folderName.trim() || DEFAULT_FOLDER);
+    return new DriveSync(client(), settings26.store.folderName.trim() || DEFAULT_FOLDER);
   }
   function setStatus(text) {
     status = text;
@@ -20553,7 +20842,7 @@ div#reply-control .reply-area {
     return running3;
   }
   function scheduleSync() {
-    if (!settings23.store.autoSync || !client().configured || !dirty.size && !dearrowDirty)
+    if (!settings26.store.autoSync || !client().configured || !dirty.size && !dearrowDirty)
       return;
     if (timer4)
       clearTimeout(timer4);
@@ -20600,7 +20889,7 @@ div#reply-control .reply-area {
     description: "把总结、问答与 DeArrow 状态同步到你自己的 Google Drive，多设备共享；本地缺失时自动从云端拉取。",
     tags: ["sync"],
     icon: CloudIcon,
-    settings: settings23,
+    settings: settings26,
     start() {
       dirty = loadDirty();
       dearrowDirty = loadDeArrowDirty();
@@ -20648,6 +20937,7 @@ div#reply-control .reply-area {
   postTimestamps_default.updatedAt = 1792792379000;
   topicSummary_default.updatedAt = 1792885926000;
   disableAutoplay_default.updatedAt = 1792361044000;
+  navLabels_default.updatedAt = 0;
   privacyBlur_default.updatedAt = 1792792379000;
   listSummary_default.updatedAt = 1792789819000;
   customIdentity_default.updatedAt = 1792843761000;
@@ -20662,17 +20952,19 @@ div#reply-control .reply-area {
   topicExport_default.updatedAt = 1792792379000;
   customGreeting_default.updatedAt = 1792361044000;
   searchFilter_default.updatedAt = 1792361044000;
+  hideElements_default.updatedAt = 0;
+  compactStyle_default.updatedAt = 0;
   panguSpacing_default.updatedAt = 1792361044000;
   topicQA_default.updatedAt = 1792792379000;
   wideLayout_default.updatedAt = 1792361044000;
   driveSync_default.updatedAt = 1792705837000;
   keywordSearch_default.updatedAt = 1792361044000;
-  var __plugins_default = { [ai_default.name]: ai_default, [notifications_default.name]: notifications_default, [settings_default.name]: settings_default, [userStyles_default.name]: userStyles_default, [postTimestamps_default.name]: postTimestamps_default, [topicSummary_default.name]: topicSummary_default, [disableAutoplay_default.name]: disableAutoplay_default, [privacyBlur_default.name]: privacyBlur_default, [listSummary_default.name]: listSummary_default, [customIdentity_default.name]: customIdentity_default, [sidebarWidth_default.name]: sidebarWidth_default, [recentTopics_default.name]: recentTopics_default, [createdTime_default.name]: createdTime_default, [completionAlert_default.name]: completionAlert_default, [topicBlocker_default.name]: topicBlocker_default, [deArrow_default.name]: deArrow_default, [posterAvatars_default.name]: posterAvatars_default, [noWatermark_default.name]: noWatermark_default, [topicExport_default.name]: topicExport_default, [customGreeting_default.name]: customGreeting_default, [searchFilter_default.name]: searchFilter_default, [panguSpacing_default.name]: panguSpacing_default, [topicQA_default.name]: topicQA_default, [wideLayout_default.name]: wideLayout_default, [driveSync_default.name]: driveSync_default, [keywordSearch_default.name]: keywordSearch_default };
+  var __plugins_default = { [ai_default.name]: ai_default, [notifications_default.name]: notifications_default, [settings_default.name]: settings_default, [userStyles_default.name]: userStyles_default, [postTimestamps_default.name]: postTimestamps_default, [topicSummary_default.name]: topicSummary_default, [disableAutoplay_default.name]: disableAutoplay_default, [navLabels_default.name]: navLabels_default, [privacyBlur_default.name]: privacyBlur_default, [listSummary_default.name]: listSummary_default, [customIdentity_default.name]: customIdentity_default, [sidebarWidth_default.name]: sidebarWidth_default, [recentTopics_default.name]: recentTopics_default, [createdTime_default.name]: createdTime_default, [completionAlert_default.name]: completionAlert_default, [topicBlocker_default.name]: topicBlocker_default, [deArrow_default.name]: deArrow_default, [posterAvatars_default.name]: posterAvatars_default, [noWatermark_default.name]: noWatermark_default, [topicExport_default.name]: topicExport_default, [customGreeting_default.name]: customGreeting_default, [searchFilter_default.name]: searchFilter_default, [hideElements_default.name]: hideElements_default, [compactStyle_default.name]: compactStyle_default, [panguSpacing_default.name]: panguSpacing_default, [topicQA_default.name]: topicQA_default, [wideLayout_default.name]: wideLayout_default, [driveSync_default.name]: driveSync_default, [keywordSearch_default.name]: keywordSearch_default };
 
   // src/LDPP.ts
   var logger17 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261024.2] v1.0.0";
+  var version = "[20261030.1] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -20686,7 +20978,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger17.info(`LD++ ${"[20261024.2] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger17.info(`LD++ ${"[20261030.1] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 

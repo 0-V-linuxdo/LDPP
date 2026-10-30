@@ -119,3 +119,9 @@ export const DownloadIcon = stroke(path("M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v
 export const CalendarClockIcon = stroke(path("M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"), path("M16 2v4"), path("M8 2v4"), path("M3 10h5"), path("M17.5 17.5 16 16.3V14"), circle(16, 16, 6));
 /** Lucide "layout-grid" — 最近话题切换器. */
 export const LayoutGridIcon = stroke(["rect", { x: "3", y: "3", width: "7", height: "7", rx: "1" }], ["rect", { x: "14", y: "3", width: "7", height: "7", rx: "1" }], ["rect", { x: "14", y: "14", width: "7", height: "7", rx: "1" }], ["rect", { x: "3", y: "14", width: "7", height: "7", rx: "1" }]);
+/** Lucide "eye-closed" — 隐藏界面元素. */
+export const EyeClosedIcon = stroke(path("m15 18-.722-3.25"), path("M2 8a10.645 10.645 0 0 0 20 0"), path("m20 15-1.726-2.05"), path("m4 15 1.726-2.05"), path("m9 18 .722-3.25"));
+/** Lucide "type" — 导航标签自定义. */
+export const TypeIcon = stroke(path("M12 4v16"), path("M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2"), path("M9 20h6"));
+/** Lucide "minimize-2" — 紧凑样式. */
+export const MinimizeIcon = stroke(path("m14 10 7-7"), path("M20 10h-6V4"), path("m3 21 7-7"), path("M4 14h6v6"));
