@@ -75,30 +75,6 @@
     max-width: none;
 }
 
-.ldpp-color-field {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.ldpp-color-field > .ldpp-input {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-/* The native swatch, sized like the text box beside it. */
-.ldpp-color-swatch.ldpp-color-swatch {
-    flex: none;
-    width: 2.1rem;
-    height: 2.1rem;
-    margin: 0;
-    padding: 2px;
-    border: 1px solid var(--ldpp-line);
-    border-radius: 6px;
-    background: var(--ldpp-bg);
-    cursor: pointer;
-}
-
 /* 「快速 CSS」 tab and the theme editor: the editor takes the rest of the height and scrolls on its own. */
 .ldpp-tab-panel:has(> .ldpp-quick-css) {
     height: 100%;

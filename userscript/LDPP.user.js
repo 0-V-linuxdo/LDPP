@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261030.1
+// @version      20261030.2
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261030.1] v1.0.0 — a modification for linux.do
+ * LD++ [20261030.2] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -1915,6 +1915,31 @@ select.ldpp-input {
     flex: 1 1 auto;
     width: auto;
     min-width: 0;
+}
+
+.ldpp-color-field {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ldpp-color-field > .ldpp-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* A colour control: the native swatch, sized like the text box or select beside it. Shared by the theme variables,
+   「关键词搜索增强」 and 「导航标签自定义」, so every colour picker in the settings looks the same. */
+.ldpp-color-swatch.ldpp-color-swatch {
+    flex: none;
+    width: 2.1rem;
+    height: 2.1rem;
+    margin: 0;
+    padding: 2px;
+    border: 1px solid var(--ldpp-line);
+    border-radius: 6px;
+    background: var(--ldpp-bg);
+    cursor: pointer;
 }
 
 .ldpp-field-wide > .ldpp-input,
@@ -8223,30 +8248,6 @@ Please report this to https://github.com/markedjs/marked.`;
     max-width: none;
 }
 
-.ldpp-color-field {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.ldpp-color-field > .ldpp-input {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-/* The native swatch, sized like the text box beside it. */
-.ldpp-color-swatch.ldpp-color-swatch {
-    flex: none;
-    width: 2.1rem;
-    height: 2.1rem;
-    margin: 0;
-    padding: 2px;
-    border: 1px solid var(--ldpp-line);
-    border-radius: 6px;
-    background: var(--ldpp-bg);
-    cursor: pointer;
-}
-
 /* 「快速 CSS」 tab and the theme editor: the editor takes the rest of the height and scrolls on its own. */
 .ldpp-tab-panel:has(> .ldpp-quick-css) {
     height: 100%;
@@ -9379,20 +9380,9 @@ ${section.code}
     white-space: nowrap;
 }
 
-.ldpp-kws-color > .ldpp-kws-color-input {
+.ldpp-kws-color > .ldpp-color-swatch {
     flex: none;
     margin-inline-start: auto;
-}
-
-.ldpp-kws-color-input {
-    width: 1.75rem;
-    height: 1.75rem;
-    margin: 0;
-    padding: 0;
-    border: 1px solid var(--ldpp-line);
-    border-radius: 6px;
-    background: transparent;
-    cursor: pointer;
 }
 `);
 
@@ -9729,7 +9719,7 @@ ${section.code}
       root.replaceChildren(...SORT_OPTIONS.map((option) => {
         const tag = badge(option.id);
         const preview = h("span", { class: "ldpp-kws-preview", style: { "border-color": sortColor(option.id) } }, h("span", null, "\uD83D\uDD0D 颜色预览"), tag);
-        const picker = h("input", { type: "color", class: "ldpp-kws-color-input", value: sortColor(option.id), title: `${option.name}的颜色` });
+        const picker = h("input", { type: "color", class: "ldpp-color-swatch", value: sortColor(option.id), title: `${option.name}的颜色` });
         picker.addEventListener("input", () => {
           preview.style.borderColor = picker.value;
           tag.style.backgroundColor = picker.value;
@@ -12446,7 +12436,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261030.1] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"8186771"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261030.2] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"2b51f2a"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -14950,14 +14940,50 @@ ${content.text}`
     }
   });
 
+  // ldpp-css:src/plugins/navLabels/styles.css
+  registerStyle("navLabels", `/* The preview: a navigation tab with its subtitle above the name, as the navigation bar draws it. */
+.ldpp-field-head > .ldpp-field-control.ldpp-nav-labels-preview {
+    display: flex;
+    align-items: center;
+}
+
+.ldpp-nav-labels-tab {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    min-height: 2.6rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: var(--ldpp-btn-radius);
+    background: var(--ldpp-soft);
+    color: var(--ldpp-fg);
+    white-space: nowrap;
+}
+
+.ldpp-nav-labels-sub {
+    font-size: 0.625rem;
+    line-height: 1.2;
+}
+
+.ldpp-nav-labels-name {
+    font-size: 1rem;
+    line-height: 1.3;
+}
+
+/* The swatch only shows for a custom colour; the select keeps the rest of the column. */
+.ldpp-color-field > .ldpp-color-swatch[hidden] {
+    display: none;
+}
+`);
+
   // src/plugins/navLabels/index.ts
   var STYLE = "navLabels";
   var COUNT_ATTR = "data-ldpp-count";
   var TABS = [
     { id: "latest", site: "最新", label: { name: "最新 (Latest)", sub: "帖子", color: "#0000ff" } },
     { id: "new", site: "新", label: { name: "新 (Created)", sub: "话题", color: "#ff0000" } },
-    { id: "unread", site: "未读（Unread）", label: { name: "未读 (Unread)", sub: "帖子", color: "#0000ff" } },
-    { id: "unseen", site: "未读（Unseen）", label: { name: "未读 (Unseen)", sub: "帖子 + 话题", color: "" } },
+    { id: "unread", site: "未读 (Unread)", label: { name: "未读 (Unread)", sub: "帖子", color: "#0000ff" } },
+    { id: "unseen", site: "未读 (Unseen)", label: { name: "未读 (Unseen)", sub: "帖子 + 话题", color: "" } },
     { id: "top", site: "排行榜", label: { name: "活跃 (Top)", sub: "话题", color: "" } },
     { id: "hot", site: "热门", label: { name: "热门 (Hot)", sub: "话题", color: "" } },
     { id: "categories", site: "类别", label: { name: "类别 (Categories)", sub: "分组", color: "" } },
@@ -15075,16 +15101,34 @@ ${content.text}`
         label: () => tab.site,
         render: () => {
           const label = tabLabel(tab.id);
-          const picker = h("input", { type: "color", class: "ldpp-nav-labels-color", value: label.color || "#666666", title: "副标题颜色", hidden: !label.color });
-          picker.addEventListener("change", () => setTabLabel(tab.id, { color: picker.value }));
+          const subText = h("span", { class: "ldpp-nav-labels-sub" });
+          const nameText = h("span", { class: "ldpp-nav-labels-name" });
+          const draft = { ...label };
+          const paint = () => {
+            subText.textContent = draft.sub;
+            subText.hidden = !draft.sub;
+            subText.style.color = draft.color;
+            nameText.textContent = draft.name || tab.site;
+          };
+          paint();
+          const preview = h("span", { class: "ldpp-field-control ldpp-nav-labels-preview" }, h("span", { class: "ldpp-nav-labels-tab" }, subText, nameText));
+          const edit = (patch, save) => {
+            Object.assign(draft, patch);
+            paint();
+            if (save)
+              setTabLabel(tab.id, patch);
+          };
+          const picker = h("input", { type: "color", class: "ldpp-color-swatch", value: label.color || "#666666", title: "选择颜色", hidden: !label.color });
+          picker.addEventListener("input", () => edit({ color: picker.value }, false));
+          picker.addEventListener("change", () => edit({ color: picker.value }, true));
           const mode = Select(label.color ? "custom" : "site", [
             { label: "跟随站点", value: "site" },
             { label: "自定义颜色", value: "custom" }
           ], (value) => {
             picker.hidden = value !== "custom";
-            setTabLabel(tab.id, { color: value === "custom" ? picker.value : "" });
+            edit({ color: value === "custom" ? picker.value : "" }, true);
           });
-          return h("div", null, Field("名称", TextInput({ value: label.name, placeholder: `留空保留「${tab.site}」`, onChange: (name) => setTabLabel(tab.id, { name }) }), "站点显示的未读数等计数会接在名称后面。"), Field("副标题", TextInput({ value: label.sub, placeholder: "留空不显示", onChange: (sub) => setTabLabel(tab.id, { sub }) })), Field("副标题颜色", h("span", { class: "ldpp-field-control ldpp-nav-labels-color-row" }, mode, picker)));
+          return h("div", { class: "ldpp-nav-labels-form" }, Field("预览", preview), Field("名称", TextInput({ value: label.name, placeholder: `留空保留「${tab.site}」`, onInput: (name) => edit({ name }, false), onChange: (name) => edit({ name }, true) }), "站点显示的计数（如「新 (442)」）会接在名称后面。"), Field("副标题", TextInput({ value: label.sub, placeholder: "留空不显示", onInput: (sub) => edit({ sub }, false), onChange: (sub) => edit({ sub }, true) })), Field("副标题颜色", h("span", { class: "ldpp-field-control ldpp-color-field" }, mode, picker)));
         }
       })));
       root.replaceChildren(tabs.el, h("div", { class: "ldpp-row-actions" }, Button("全部恢复默认", { small: true, onClick: () => {
@@ -20937,7 +20981,7 @@ div#reply-control .reply-area {
   postTimestamps_default.updatedAt = 1792792379000;
   topicSummary_default.updatedAt = 1792885926000;
   disableAutoplay_default.updatedAt = 1792361044000;
-  navLabels_default.updatedAt = 0;
+  navLabels_default.updatedAt = 1793346803000;
   privacyBlur_default.updatedAt = 1792792379000;
   listSummary_default.updatedAt = 1792789819000;
   customIdentity_default.updatedAt = 1792843761000;
@@ -20952,8 +20996,8 @@ div#reply-control .reply-area {
   topicExport_default.updatedAt = 1792792379000;
   customGreeting_default.updatedAt = 1792361044000;
   searchFilter_default.updatedAt = 1792361044000;
-  hideElements_default.updatedAt = 0;
-  compactStyle_default.updatedAt = 0;
+  hideElements_default.updatedAt = 1793346803000;
+  compactStyle_default.updatedAt = 1793346803000;
   panguSpacing_default.updatedAt = 1792361044000;
   topicQA_default.updatedAt = 1792792379000;
   wideLayout_default.updatedAt = 1792361044000;
@@ -20964,7 +21008,7 @@ div#reply-control .reply-area {
   // src/LDPP.ts
   var logger17 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261030.1] v1.0.0";
+  var version = "[20261030.2] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -20978,7 +21022,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger17.info(`LD++ ${"[20261030.1] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger17.info(`LD++ ${"[20261030.2] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 

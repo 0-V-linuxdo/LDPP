@@ -19,6 +19,8 @@ import { registerStyle, unregisterStyle } from "@utils/css";
 import { h } from "@utils/dom";
 import definePlugin, { OptionType } from "@utils/types";
 
+import "./styles.css";
+
 const STYLE = "navLabels";
 const COUNT_ATTR = "data-ldpp-count";
 
@@ -35,8 +37,8 @@ export interface TabLabel {
 export const TABS = [
     { id: "latest", site: "最新", label: { name: "最新 (Latest)", sub: "帖子", color: "#0000ff" } },
     { id: "new", site: "新", label: { name: "新 (Created)", sub: "话题", color: "#ff0000" } },
-    { id: "unread", site: "未读（Unread）", label: { name: "未读 (Unread)", sub: "帖子", color: "#0000ff" } },
-    { id: "unseen", site: "未读（Unseen）", label: { name: "未读 (Unseen)", sub: "帖子 + 话题", color: "" } },
+    { id: "unread", site: "未读 (Unread)", label: { name: "未读 (Unread)", sub: "帖子", color: "#0000ff" } },
+    { id: "unseen", site: "未读 (Unseen)", label: { name: "未读 (Unseen)", sub: "帖子 + 话题", color: "" } },
     { id: "top", site: "排行榜", label: { name: "活跃 (Top)", sub: "话题", color: "" } },
     { id: "hot", site: "热门", label: { name: "热门 (Hot)", sub: "话题", color: "" } },
     { id: "categories", site: "类别", label: { name: "类别 (Categories)", sub: "分组", color: "" } },
@@ -162,19 +164,38 @@ function renderEditor(): HTMLElement {
             label: () => tab.site,
             render: () => {
                 const label = tabLabel(tab.id);
-                const picker = h("input", { type: "color", class: "ldpp-nav-labels-color", value: label.color || "#666666", title: "副标题颜色", hidden: !label.color });
-                picker.addEventListener("change", () => setTabLabel(tab.id, { color: picker.value }));
+                // A tab drawn as the navigation bar will draw it, updated as the user types.
+                const subText = h("span", { class: "ldpp-nav-labels-sub" });
+                const nameText = h("span", { class: "ldpp-nav-labels-name" });
+                const draft = { ...label };
+                const paint = () => {
+                    subText.textContent = draft.sub;
+                    subText.hidden = !draft.sub;
+                    subText.style.color = draft.color;
+                    nameText.textContent = draft.name || tab.site;
+                };
+                paint();
+                const preview = h("span", { class: "ldpp-field-control ldpp-nav-labels-preview" }, h("span", { class: "ldpp-nav-labels-tab" }, subText, nameText));
+                const edit = (patch: Partial<TabLabel>, save: boolean) => {
+                    Object.assign(draft, patch);
+                    paint();
+                    if (save) setTabLabel(tab.id, patch);
+                };
+                const picker = h("input", { type: "color", class: "ldpp-color-swatch", value: label.color || "#666666", title: "选择颜色", hidden: !label.color });
+                picker.addEventListener("input", () => edit({ color: picker.value }, false));
+                picker.addEventListener("change", () => edit({ color: picker.value }, true));
                 const mode = Select(label.color ? "custom" : "site", [
                     { label: "跟随站点", value: "site" },
                     { label: "自定义颜色", value: "custom" },
                 ], value => {
                     picker.hidden = value !== "custom";
-                    setTabLabel(tab.id, { color: value === "custom" ? picker.value : "" });
+                    edit({ color: value === "custom" ? picker.value : "" }, true);
                 });
-                return h("div", null,
-                    Field("名称", TextInput({ value: label.name, placeholder: `留空保留「${tab.site}」`, onChange: name => setTabLabel(tab.id, { name }) }), "站点显示的未读数等计数会接在名称后面。"),
-                    Field("副标题", TextInput({ value: label.sub, placeholder: "留空不显示", onChange: sub => setTabLabel(tab.id, { sub }) })),
-                    Field("副标题颜色", h("span", { class: "ldpp-field-control ldpp-nav-labels-color-row" }, mode, picker)),
+                return h("div", { class: "ldpp-nav-labels-form" },
+                    Field("预览", preview),
+                    Field("名称", TextInput({ value: label.name, placeholder: `留空保留「${tab.site}」`, onInput: name => edit({ name }, false), onChange: name => edit({ name }, true) }), "站点显示的计数（如「新 (442)」）会接在名称后面。"),
+                    Field("副标题", TextInput({ value: label.sub, placeholder: "留空不显示", onInput: sub => edit({ sub }, false), onChange: sub => edit({ sub }, true) })),
+                    Field("副标题颜色", h("span", { class: "ldpp-field-control ldpp-color-field" }, mode, picker)),
                 );
             },
         })));

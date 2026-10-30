@@ -614,6 +614,31 @@ select.ldpp-input {
     min-width: 0;
 }
 
+.ldpp-color-field {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ldpp-color-field > .ldpp-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* A colour control: the native swatch, sized like the text box or select beside it. Shared by the theme variables,
+   「关键词搜索增强」 and 「导航标签自定义」, so every colour picker in the settings looks the same. */
+.ldpp-color-swatch.ldpp-color-swatch {
+    flex: none;
+    width: 2.1rem;
+    height: 2.1rem;
+    margin: 0;
+    padding: 2px;
+    border: 1px solid var(--ldpp-line);
+    border-radius: 6px;
+    background: var(--ldpp-bg);
+    cursor: pointer;
+}
+
 .ldpp-field-wide > .ldpp-input,
 .ldpp-field-wide > .ldpp-secret {
     width: 100%;

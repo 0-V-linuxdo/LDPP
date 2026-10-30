@@ -273,7 +273,7 @@ function renderColors(): HTMLElement {
                 // The script's preview: a chip outlined in the colour, 「🔍 颜色预览」 and the badge filled with it.
                 const tag = badge(option.id);
                 const preview = h("span", { class: "ldpp-kws-preview", style: { "border-color": sortColor(option.id) } }, h("span", null, "🔍 颜色预览"), tag);
-                const picker = h("input", { type: "color", class: "ldpp-kws-color-input", value: sortColor(option.id), title: `${option.name}的颜色` });
+                const picker = h("input", { type: "color", class: "ldpp-color-swatch", value: sortColor(option.id), title: `${option.name}的颜色` });
                 picker.addEventListener("input", () => {
                     preview.style.borderColor = picker.value;
                     tag.style.backgroundColor = picker.value;

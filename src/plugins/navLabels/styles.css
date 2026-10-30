@@ -1,0 +1,33 @@
+/* The preview: a navigation tab with its subtitle above the name, as the navigation bar draws it. */
+.ldpp-field-head > .ldpp-field-control.ldpp-nav-labels-preview {
+    display: flex;
+    align-items: center;
+}
+
+.ldpp-nav-labels-tab {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    min-height: 2.6rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: var(--ldpp-btn-radius);
+    background: var(--ldpp-soft);
+    color: var(--ldpp-fg);
+    white-space: nowrap;
+}
+
+.ldpp-nav-labels-sub {
+    font-size: 0.625rem;
+    line-height: 1.2;
+}
+
+.ldpp-nav-labels-name {
+    font-size: 1rem;
+    line-height: 1.3;
+}
+
+/* The swatch only shows for a custom colour; the select keeps the rest of the column. */
+.ldpp-color-field > .ldpp-color-swatch[hidden] {
+    display: none;
+}

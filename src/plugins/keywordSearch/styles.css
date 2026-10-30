@@ -195,18 +195,7 @@
     white-space: nowrap;
 }
 
-.ldpp-kws-color > .ldpp-kws-color-input {
+.ldpp-kws-color > .ldpp-color-swatch {
     flex: none;
     margin-inline-start: auto;
-}
-
-.ldpp-kws-color-input {
-    width: 1.75rem;
-    height: 1.75rem;
-    margin: 0;
-    padding: 0;
-    border: 1px solid var(--ldpp-line);
-    border-radius: 6px;
-    background: transparent;
-    cursor: pointer;
 }
