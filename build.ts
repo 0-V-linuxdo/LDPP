@@ -11,7 +11,7 @@ const isDev = process.argv.includes("--dev");
 const isWatch = process.argv.includes("--watch");
 const pkg = JSON.parse(readFileSync("package.json", "utf-8"));
 
-const VERSION_DATE = "20261030.4";
+const VERSION_DATE = "20261030.5";
 const REPO_URL = "https://github.com/0-V-linuxdo/LDPP";
 const RAW_URL = "https://raw.githubusercontent.com/0-V-linuxdo/LDPP/main/userscript";
 const displayVersion = `[${VERSION_DATE}] v${pkg.version}`;
