@@ -123,7 +123,8 @@ ${tab}::after {
     }
     // Room for the subtitles above the names, on every tab so the names stay on one line. With 类别 / 标签 in the
     // same row the tabs were stretched to their 40px height, which left that room by chance.
-    if (labels.some(([, label]) => label.sub)) rules.unshift(`#navigation-bar > li {
+    // Only the desktop tabs: on a phone the bar holds one li with the dropdown, which the subtitles never reach.
+    if (labels.some(([, label]) => label.sub)) rules.unshift(`#navigation-bar > li[class*="nav-item_"] {
     padding-top: 10px;
 }`);
     return rules.join("\n");

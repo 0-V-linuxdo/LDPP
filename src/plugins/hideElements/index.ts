@@ -19,8 +19,10 @@ export const PARTS = {
     languageSwitcher: "button.language-switcher-trigger",
     themeToggle: "div.sidebar-theme-toggle__wrapper",
     globalNotice: "div.alert.alert-info.alert-global-notice",
-    navCreate: ".navigation-controls #create-topic",
-    dismissRead: ".navigation-controls .dismiss-container-top .dismiss-read",
+    // The whole button group, not only its main button: hiding #create-topic alone left the group's ▾ half as a lone
+    // blue square, which wrapped onto a line of its own in a narrow window.
+    navCreate: ".navigation-controls .d-combo-button:has(#create-topic), .navigation-controls #create-topic",
+    dismissRead: ".navigation-controls .dismiss-container-top:has(.dismiss-read), .navigation-controls .dismiss-container-top .dismiss-read",
     postedTab: "#navigation-bar > li.posted.nav-item_posted",
     outlets: "[class*='discovery-list-container-top-outlet'], [class*='topic-above-post-stream-outlet'], [class*='topic-above-suggested-outlet']",
 } as const;
