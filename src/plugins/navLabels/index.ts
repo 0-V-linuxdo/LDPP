@@ -50,6 +50,11 @@ export const TABS = [
 export type TabId = typeof TABS[number]["id"];
 
 export const settings = definePluginSettings({
+    ownRow: {
+        type: OptionType.BOOLEAN,
+        description: "导航标签单独占一行（「类别」「标签」下拉在上一行）",
+        default: true,
+    },
     labels: { type: OptionType.CUSTOM, default: {} as Partial<Record<TabId, Partial<TabLabel>>> },
     editor: {
         type: OptionType.COMPONENT,
@@ -78,27 +83,39 @@ export function cssString(text: string): string {
     return `"${text.replaceAll(/[\\"]/g, "\\$&").replaceAll(/[\r\n]+/g, " ")}"`;
 }
 
-/** The stylesheet for the given labels; empty when no tab is changed. */
+/** The breadcrumb (类别 / 标签) takes a row of its own, so the tabs start a row below it, as with the user style. */
+export const OWN_ROW_CSS = `.navigation-container > .category-breadcrumb {
+    flex-basis: 100%;
+}`;
+
+/**
+ * The stylesheet for the given labels; empty when no tab is changed. The subtitle hangs off the tab (li::after),
+ * since Discourse draws the active tab's underline with the link's ::after. A renamed tab is padded 15px a side as the
+ * user style had it; the subtitle starts where the name does.
+ */
 export function labelsCss(labels: ReadonlyArray<[TabId, TabLabel]>): string {
     const rules: string[] = [];
     for (const [id, { name, sub, color }] of labels) {
-        const link = `#navigation-bar > li.nav-item_${id} > a`;
+        const tab = `#navigation-bar > li.nav-item_${id}`;
         if (!name && !sub) continue;
-        rules.push(`${link} {
-    position: relative;${name ? "\n    font-size: 0 !important;" : ""}
-}`);
-        if (name) rules.push(`${link}::before {
+        if (name) rules.push(`${tab} > a {
+    font-size: 0 !important;
+}
+${tab} > a::before {
     content: ${cssString(name)} attr(${COUNT_ATTR});
     font-size: 1rem;
-    padding: 0 0.65rem;
+    padding: 2px 15px;
     white-space: nowrap;
 }`);
-        if (sub) rules.push(`${link}::after {
+        if (sub) rules.push(`${tab} {
+    position: relative;
+}
+${tab}::after {
     content: ${cssString(sub)};
     position: absolute;
     top: 0;
-    left: 0.65rem;
-    font-size: 0.625rem;
+    left: ${name ? "15px" : "0.65em"};
+    font-size: 10px;
     line-height: 1.2;
     white-space: nowrap;
     pointer-events: none;${color ? `\n    color: ${color};` : ""}
@@ -149,7 +166,7 @@ function watchCounts(on: boolean) {
 
 function apply() {
     const labels = TABS.map(tab => [tab.id, tabLabel(tab.id)] as [TabId, TabLabel]);
-    const css = active ? labelsCss(labels) : "";
+    const css = active ? [settings.store.ownRow !== false ? OWN_ROW_CSS : "", labelsCss(labels)].filter(Boolean).join("\n") : "";
     if (css) registerStyle(STYLE, css);
     else unregisterStyle(STYLE);
     watchCounts(active && labels.some(([, label]) => label.name));

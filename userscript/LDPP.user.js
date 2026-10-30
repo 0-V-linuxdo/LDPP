@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261030.3
+// @version      20261030.4
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261030.3] v1.0.0 — a modification for linux.do
+ * LD++ [20261030.4] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -12443,7 +12443,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261030.3] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"76e4a0e"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261030.4] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"0e90d96"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -14999,6 +14999,11 @@ ${content.text}`
     { id: "read", site: "已读", label: { name: "", sub: "", color: "" } }
   ];
   var settings13 = definePluginSettings({
+    ownRow: {
+      type: 2 /* BOOLEAN */,
+      description: "导航标签单独占一行（「类别」「标签」下拉在上一行）",
+      default: true
+    },
     labels: { type: 6 /* CUSTOM */, default: {} },
     editor: {
       type: 5 /* COMPONENT */,
@@ -15020,30 +15025,35 @@ ${content.text}`
   function cssString(text) {
     return `"${text.replaceAll(/[\\"]/g, "\\$&").replaceAll(/[\r\n]+/g, " ")}"`;
   }
+  var OWN_ROW_CSS = `.navigation-container > .category-breadcrumb {
+    flex-basis: 100%;
+}`;
   function labelsCss(labels) {
     const rules = [];
     for (const [id, { name, sub, color }] of labels) {
-      const link = `#navigation-bar > li.nav-item_${id} > a`;
+      const tab = `#navigation-bar > li.nav-item_${id}`;
       if (!name && !sub)
         continue;
-      rules.push(`${link} {
-    position: relative;${name ? `
-    font-size: 0 !important;` : ""}
-}`);
       if (name)
-        rules.push(`${link}::before {
+        rules.push(`${tab} > a {
+    font-size: 0 !important;
+}
+${tab} > a::before {
     content: ${cssString(name)} attr(${COUNT_ATTR});
     font-size: 1rem;
-    padding: 0 0.65rem;
+    padding: 2px 15px;
     white-space: nowrap;
 }`);
       if (sub)
-        rules.push(`${link}::after {
+        rules.push(`${tab} {
+    position: relative;
+}
+${tab}::after {
     content: ${cssString(sub)};
     position: absolute;
     top: 0;
-    left: 0.65rem;
-    font-size: 0.625rem;
+    left: ${name ? "15px" : "0.65em"};
+    font-size: 10px;
     line-height: 1.2;
     white-space: nowrap;
     pointer-events: none;${color ? `
@@ -15094,7 +15104,8 @@ ${content.text}`
   }
   function apply() {
     const labels = TABS.map((tab) => [tab.id, tabLabel(tab.id)]);
-    const css = active4 ? labelsCss(labels) : "";
+    const css = active4 ? [settings13.store.ownRow !== false ? OWN_ROW_CSS : "", labelsCss(labels)].filter(Boolean).join(`
+`) : "";
     if (css)
       registerStyle(STYLE, css);
     else
@@ -20988,7 +20999,7 @@ div#reply-control .reply-area {
   postTimestamps_default.updatedAt = 1792792379000;
   topicSummary_default.updatedAt = 1792885926000;
   disableAutoplay_default.updatedAt = 1792361044000;
-  navLabels_default.updatedAt = 1793347343000;
+  navLabels_default.updatedAt = 1793347469000;
   privacyBlur_default.updatedAt = 1792792379000;
   listSummary_default.updatedAt = 1792789819000;
   customIdentity_default.updatedAt = 1792843761000;
@@ -21003,8 +21014,8 @@ div#reply-control .reply-area {
   topicExport_default.updatedAt = 1792792379000;
   customGreeting_default.updatedAt = 1792361044000;
   searchFilter_default.updatedAt = 1792361044000;
-  hideElements_default.updatedAt = 1793346803000;
-  compactStyle_default.updatedAt = 1793346803000;
+  hideElements_default.updatedAt = 1793347469000;
+  compactStyle_default.updatedAt = 1793347469000;
   panguSpacing_default.updatedAt = 1792361044000;
   topicQA_default.updatedAt = 1792792379000;
   wideLayout_default.updatedAt = 1792361044000;
@@ -21015,7 +21026,7 @@ div#reply-control .reply-area {
   // src/LDPP.ts
   var logger17 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261030.3] v1.0.0";
+  var version = "[20261030.4] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -21029,7 +21040,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger17.info(`LD++ ${"[20261030.3] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger17.info(`LD++ ${"[20261030.4] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 

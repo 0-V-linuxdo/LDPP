@@ -59,6 +59,9 @@ describe("导航标签自定义", () => {
         expect(css).toContain(`content: "话题";`);
         expect(css).toContain("color: #ff0000;");
         expect(css).toContain("font-size: 0 !important;");
+        // On the tab, not the link: Discourse draws the active tab's underline with the link's ::after.
+        expect(css).toContain("#navigation-bar > li.nav-item_new::after {");
+        expect(css).not.toContain("> a::after");
     });
 
     test("a subtitle alone keeps the site's name, and an untouched tab gets no rule", () => {
@@ -91,6 +94,7 @@ describe("导航标签自定义", () => {
         document.body.innerHTML = `<ul id="navigation-bar"><li class="new nav-item_new"><a href="/new">新 (3)</a></li></ul>`;
         startPlugin(NavLabels);
         expect(styleText("navLabels-tabs")).toContain(`"最新 (Latest)"`);
+        expect(styleText("navLabels-tabs")).toContain(".category-breadcrumb {\n    flex-basis: 100%;");
         expect(document.querySelector("#navigation-bar a")!.getAttribute("data-ldpp-count")).toBe(" (3)");
         navSettings.store.labels = { latest: { name: "Latest" } };
         expect(styleText("navLabels-tabs")).toContain(`content: "Latest" attr(data-ldpp-count);`);
