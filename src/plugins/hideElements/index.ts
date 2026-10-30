@@ -12,7 +12,7 @@ import { EyeClosedIcon } from "@components/icons";
 import { registerStyle, unregisterStyle } from "@utils/css";
 import definePlugin, { OptionType, StartAt } from "@utils/types";
 
-const STYLE = "hideElements";
+const STYLE = "hideElements-parts";
 
 export const PARTS = {
     headerCreate: "button.header-create-topic",

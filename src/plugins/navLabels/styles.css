@@ -1,6 +1,6 @@
 /* The preview: a navigation tab with its subtitle above the name, as the navigation bar draws it. */
 .ldpp-field-head > .ldpp-field-control.ldpp-nav-labels-preview {
-    display: flex;
+    flex-direction: row;
     align-items: center;
 }
 

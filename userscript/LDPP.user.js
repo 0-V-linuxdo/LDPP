@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LD++
 // @namespace    https://github.com/0-V-linuxdo/LDPP
-// @version      20261030.2
+// @version      20261030.3
 // @description  LINUX DO 增强：话题屏蔽、搜索过滤、AI 总结与追问、DeArrow 标题党改写、Google Drive 同步，一个脚本、互不打架。
 // @author       LD++ Contributors
 // @homepageURL  https://github.com/0-V-linuxdo/LDPP
@@ -23,7 +23,7 @@
 // ==/UserScript==
 
 /**
- * LD++ [20261030.2] v1.0.0 — a modification for linux.do
+ * LD++ [20261030.3] v1.0.0 — a modification for linux.do
  * (c) 2026 LD++ Contributors · GPL-3.0-or-later
  */
 (() => {
@@ -1919,6 +1919,13 @@ select.ldpp-input {
 
 .ldpp-color-field {
     display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* In a settings field the control column is a column (.ldpp-field-control); a colour control stays one row. */
+.ldpp-field-head > .ldpp-field-control.ldpp-color-field {
+    flex-direction: row;
     align-items: center;
     gap: 0.5rem;
 }
@@ -12436,7 +12443,7 @@ ${section.code}
     return h("div", null, renderSettingsForm(plugins.Notifications) ?? Hint("无设置"), h("div", { class: "ldpp-row-actions" }, Button("预览通知", { onClick: previewToasts })));
   }
   function renderAbout() {
-    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261030.2] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"2b51f2a"}`));
+    return h("div", { class: "ldpp-about" }, h("h3", null, `LD++ ${"[20261030.3] v1.0.0"}`, InfoTip("请不要同时启用旧版「屏蔽脚本」与「总结脚本」：LD++ 已包含它们的全部功能，同时启用会重复处理话题列表。旧脚本的数据可在「数据」页导入。", { label: "注意", warning: true })), h("p", null, "LINUX DO 增强脚本：话题屏蔽、搜索过滤、话题 / 列表 AI 总结与追问、DeArrow 标题党改写、Google Drive 同步。"), h("p", { class: "ldpp-muted" }, `构建：${"76e4a0e"}`));
   }
   function openSettings(tab = "features", plugin) {
     dialog?.close();
@@ -14943,7 +14950,7 @@ ${content.text}`
   // ldpp-css:src/plugins/navLabels/styles.css
   registerStyle("navLabels", `/* The preview: a navigation tab with its subtitle above the name, as the navigation bar draws it. */
 .ldpp-field-head > .ldpp-field-control.ldpp-nav-labels-preview {
-    display: flex;
+    flex-direction: row;
     align-items: center;
 }
 
@@ -14977,7 +14984,7 @@ ${content.text}`
 `);
 
   // src/plugins/navLabels/index.ts
-  var STYLE = "navLabels";
+  var STYLE = "navLabels-tabs";
   var COUNT_ATTR = "data-ldpp-count";
   var TABS = [
     { id: "latest", site: "最新", label: { name: "最新 (Latest)", sub: "帖子", color: "#0000ff" } },
@@ -18979,7 +18986,7 @@ ${TITLE} {
   });
 
   // src/plugins/hideElements/index.ts
-  var STYLE6 = "hideElements";
+  var STYLE6 = "hideElements-parts";
   var PARTS2 = {
     headerCreate: "button.header-create-topic",
     languageSwitcher: "button.language-switcher-trigger",
@@ -19038,7 +19045,7 @@ ${TITLE} {
   });
 
   // src/plugins/compactStyle/index.ts
-  var STYLE7 = "compactStyle";
+  var STYLE7 = "compactStyle-parts";
   var PARTS3 = {
     sidebarHeadings: `span.sidebar-section-header-text {
     color: var(--primary-medium);
@@ -20977,11 +20984,11 @@ div#reply-control .reply-area {
   ai_default.updatedAt = 1792361044000;
   notifications_default.updatedAt = 1792885926000;
   settings_default.updatedAt = 1792792379000;
-  userStyles_default.updatedAt = 1792361044000;
+  userStyles_default.updatedAt = 1793347343000;
   postTimestamps_default.updatedAt = 1792792379000;
   topicSummary_default.updatedAt = 1792885926000;
   disableAutoplay_default.updatedAt = 1792361044000;
-  navLabels_default.updatedAt = 1793346803000;
+  navLabels_default.updatedAt = 1793347343000;
   privacyBlur_default.updatedAt = 1792792379000;
   listSummary_default.updatedAt = 1792789819000;
   customIdentity_default.updatedAt = 1792843761000;
@@ -21002,13 +21009,13 @@ div#reply-control .reply-area {
   topicQA_default.updatedAt = 1792792379000;
   wideLayout_default.updatedAt = 1792361044000;
   driveSync_default.updatedAt = 1792705837000;
-  keywordSearch_default.updatedAt = 1792361044000;
+  keywordSearch_default.updatedAt = 1793347343000;
   var __plugins_default = { [ai_default.name]: ai_default, [notifications_default.name]: notifications_default, [settings_default.name]: settings_default, [userStyles_default.name]: userStyles_default, [postTimestamps_default.name]: postTimestamps_default, [topicSummary_default.name]: topicSummary_default, [disableAutoplay_default.name]: disableAutoplay_default, [navLabels_default.name]: navLabels_default, [privacyBlur_default.name]: privacyBlur_default, [listSummary_default.name]: listSummary_default, [customIdentity_default.name]: customIdentity_default, [sidebarWidth_default.name]: sidebarWidth_default, [recentTopics_default.name]: recentTopics_default, [createdTime_default.name]: createdTime_default, [completionAlert_default.name]: completionAlert_default, [topicBlocker_default.name]: topicBlocker_default, [deArrow_default.name]: deArrow_default, [posterAvatars_default.name]: posterAvatars_default, [noWatermark_default.name]: noWatermark_default, [topicExport_default.name]: topicExport_default, [customGreeting_default.name]: customGreeting_default, [searchFilter_default.name]: searchFilter_default, [hideElements_default.name]: hideElements_default, [compactStyle_default.name]: compactStyle_default, [panguSpacing_default.name]: panguSpacing_default, [topicQA_default.name]: topicQA_default, [wideLayout_default.name]: wideLayout_default, [driveSync_default.name]: driveSync_default, [keywordSearch_default.name]: keywordSearch_default };
 
   // src/LDPP.ts
   var logger17 = new Logger("Core", "#f9d77e");
   var initialized = false;
-  var version = "[20261030.2] v1.0.0";
+  var version = "[20261030.3] v1.0.0";
   function init() {
     if (initialized)
       return;
@@ -21022,7 +21029,7 @@ div#reply-control .reply-area {
       startNavigation();
       startTopicList();
       startAllPlugins("DOMContentLoaded" /* DOMContentLoaded */);
-      logger17.info(`LD++ ${"[20261030.2] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
+      logger17.info(`LD++ ${"[20261030.3] v1.0.0"} 已加载，${Object.keys(__plugins_default).length} 个模块`);
     });
   }
 

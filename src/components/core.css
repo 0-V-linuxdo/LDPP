@@ -620,6 +620,13 @@ select.ldpp-input {
     gap: 0.5rem;
 }
 
+/* In a settings field the control column is a column (.ldpp-field-control); a colour control stays one row. */
+.ldpp-field-head > .ldpp-field-control.ldpp-color-field {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .ldpp-color-field > .ldpp-input {
     flex: 1 1 auto;
     min-width: 0;

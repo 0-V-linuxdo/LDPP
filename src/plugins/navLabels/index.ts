@@ -21,7 +21,7 @@ import definePlugin, { OptionType } from "@utils/types";
 
 import "./styles.css";
 
-const STYLE = "navLabels";
+const STYLE = "navLabels-tabs";
 const COUNT_ATTR = "data-ldpp-count";
 
 export interface TabLabel {

@@ -23,7 +23,7 @@ describe("隐藏界面元素", () => {
     test("is off by default and hides every part once turned on", () => {
         expect(isPluginEnabled("HideElements")).toBe(false);
         startPlugin(HideElements);
-        const css = styleText("hideElements")!;
+        const css = styleText("hideElements-parts")!;
         for (const selector of Object.values(HIDE_PARTS)) expect(css).toContain(selector);
         expect(css).toContain("display: none !important;");
     });
@@ -31,11 +31,11 @@ describe("隐藏界面元素", () => {
     test("leaves out a part switched off, and drops the style when all are", () => {
         startPlugin(HideElements);
         hideSettings.store.postedTab = false;
-        expect(styleText("hideElements")).not.toContain("nav-item_posted");
+        expect(styleText("hideElements-parts")).not.toContain("nav-item_posted");
         for (const key of Object.keys(HIDE_PARTS)) hideSettings.store[key as keyof typeof HIDE_PARTS] = false;
-        expect(styleText("hideElements")).toBeNull();
+        expect(styleText("hideElements-parts")).toBeNull();
         stopPlugin(HideElements);
-        expect(styleText("hideElements")).toBeNull();
+        expect(styleText("hideElements-parts")).toBeNull();
     });
 });
 
@@ -90,13 +90,13 @@ describe("导航标签自定义", () => {
     test("applies edits at once and removes everything when turned off", () => {
         document.body.innerHTML = `<ul id="navigation-bar"><li class="new nav-item_new"><a href="/new">新 (3)</a></li></ul>`;
         startPlugin(NavLabels);
-        expect(styleText("navLabels")).toContain(`"最新 (Latest)"`);
+        expect(styleText("navLabels-tabs")).toContain(`"最新 (Latest)"`);
         expect(document.querySelector("#navigation-bar a")!.getAttribute("data-ldpp-count")).toBe(" (3)");
         navSettings.store.labels = { latest: { name: "Latest" } };
-        expect(styleText("navLabels")).toContain(`content: "Latest" attr(data-ldpp-count);`);
-        expect(styleText("navLabels")).toContain(`content: "帖子";`);
+        expect(styleText("navLabels-tabs")).toContain(`content: "Latest" attr(data-ldpp-count);`);
+        expect(styleText("navLabels-tabs")).toContain(`content: "帖子";`);
         stopPlugin(NavLabels);
-        expect(styleText("navLabels")).toBeNull();
+        expect(styleText("navLabels-tabs")).toBeNull();
         expect(document.querySelector("[data-ldpp-count]")).toBeNull();
     });
 });
@@ -111,10 +111,10 @@ describe("紧凑样式", () => {
     test("is off by default and carries each tweak behind its own switch", () => {
         expect(isPluginEnabled("CompactStyle")).toBe(false);
         startPlugin(CompactStyle);
-        expect(styleText("compactStyle")).toContain("span.sidebar-section-header-text");
-        expect(styleText("compactStyle")).toContain("h3.topic-timer-heading");
+        expect(styleText("compactStyle-parts")).toContain("span.sidebar-section-header-text");
+        expect(styleText("compactStyle-parts")).toContain("h3.topic-timer-heading");
         compactSettings.store.timerHeading = false;
-        expect(styleText("compactStyle")).not.toContain("h3.topic-timer-heading");
-        expect(styleText("compactStyle")).toContain("custom-search-banner-wrap");
+        expect(styleText("compactStyle-parts")).not.toContain("h3.topic-timer-heading");
+        expect(styleText("compactStyle-parts")).toContain("custom-search-banner-wrap");
     });
 });
